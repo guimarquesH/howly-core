@@ -1,152 +1,209 @@
 package com.gilbertomorales.howlyvelocity.managers;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 import com.velocitypowered.api.proxy.Player;
 
-import java.io.*;
-import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class MedalManager {
 
-    private final Path dataDirectory;
-    private final File medalsFile;
-    private final File playerMedalsFile;
-    private final Gson gson;
+    private final DatabaseManager databaseManager;
 
-    // Lista de medalhas disponíveis com suas permissões
-    private final Map<String, MedalInfo> availableMedals = new LinkedHashMap<>();
+    // Cache em memória para performance
+    private final Map<String, MedalInfo> availableMedals = new ConcurrentHashMap<>();
+    private final Map<UUID, String> playerMedals = new ConcurrentHashMap<>();
 
-    // Medalhas selecionadas pelos jogadores
-    private final Map<UUID, String> playerMedals = new HashMap<>();
-
-    public MedalManager(Path dataDirectory) {
-        this.dataDirectory = dataDirectory;
-        this.medalsFile = new File(dataDirectory.toFile(), "medals.json");
-        this.playerMedalsFile = new File(dataDirectory.toFile(), "player_medals.json");
-        this.gson = new GsonBuilder()
-                .setPrettyPrinting()
-                .disableHtmlEscaping()
-                .create();
-
-        // Inicializar medalhas padrão
+    public MedalManager(DatabaseManager databaseManager) {
+        this.databaseManager = databaseManager;
         initDefaultMedals();
     }
 
     private void initDefaultMedals() {
+        // Medalhas padrão serão carregadas do banco de dados
         availableMedals.put("nenhuma", new MedalInfo("", "", ""));
-        availableMedals.put("estrela", new MedalInfo("★", "howly.medal.estrela", "§e"));
-        availableMedals.put("coracao", new MedalInfo("♥", "howly.medal.coracao", "§c"));
-        availableMedals.put("coroa", new MedalInfo("♔", "howly.medal.coroa", "§6"));
-        availableMedals.put("diamante", new MedalInfo("♦", "howly.medal.diamante", "§b"));
-        availableMedals.put("cafe", new MedalInfo("☕", "howly.medal.cafe", "§6"));
-        availableMedals.put("sol", new MedalInfo("☀", "howly.medal.sol", "§e"));
-        availableMedals.put("lua", new MedalInfo("☽", "howly.medal.lua", "§9"));
-        availableMedals.put("musica", new MedalInfo("♪", "howly.medal.musica", "§d"));
-        availableMedals.put("flor", new MedalInfo("✿", "howly.medal.flor", "§a"));
-        availableMedals.put("raio", new MedalInfo("⚡", "howly.medal.raio", "§e"));
-        availableMedals.put("fogo", new MedalInfo("♨", "howly.medal.fogo", "§c"));
-        availableMedals.put("gelo", new MedalInfo("❄", "howly.medal.gelo", "§f"));
-        availableMedals.put("trevo", new MedalInfo("♣", "howly.medal.trevo", "§a"));
-        availableMedals.put("espada", new MedalInfo("⚔", "howly.medal.espada", "§7"));}
+    }
 
     public void loadMedals() {
-        try {
-            if (!medalsFile.exists()) {
-                saveMedals();
-                return;
+        CompletableFuture.runAsync(() -> {
+            try {
+                loadAvailableMedalsFromDB();
+                loadPlayerMedalsFromDB();
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
+        });
+    }
 
-            try (Reader reader = new InputStreamReader(new FileInputStream(medalsFile), StandardCharsets.UTF_8)) {
-                Type medalMapType = new TypeToken<Map<String, MedalInfo>>() {}.getType();
-                Map<String, MedalInfo> loadedMedals = gson.fromJson(reader, medalMapType);
+    private void loadAvailableMedalsFromDB() throws SQLException {
+        String sql = "SELECT medal_id, symbol, permission, color FROM available_medals";
 
-                if (loadedMedals != null) {
-                    availableMedals.clear();
-                    availableMedals.putAll(loadedMedals);
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            availableMedals.clear();
+            while (rs.next()) {
+                String medalId = rs.getString("medal_id");
+                String symbol = rs.getString("symbol");
+                String permission = rs.getString("permission");
+                String color = rs.getString("color");
+
+                availableMedals.put(medalId, new MedalInfo(symbol, permission, color));
+            }
+        }
+    }
+
+    private void loadPlayerMedalsFromDB() throws SQLException {
+        String sql = "SELECT player_uuid, medal_id FROM player_medals";
+
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            playerMedals.clear();
+            while (rs.next()) {
+                try {
+                    UUID playerUuid = UUID.fromString(rs.getString("player_uuid"));
+                    String medalId = rs.getString("medal_id");
+                    playerMedals.put(playerUuid, medalId);
+                } catch (IllegalArgumentException e) {
+                    // Ignorar UUIDs inválidos
                 }
             }
-
-            // Carregar medalhas dos jogadores
-            if (playerMedalsFile.exists()) {
-                try (Reader reader = new InputStreamReader(new FileInputStream(playerMedalsFile), StandardCharsets.UTF_8)) {
-                    Type playerMedalMapType = new TypeToken<Map<String, String>>() {}.getType();
-                    Map<String, String> loadedPlayerMedals = gson.fromJson(reader, playerMedalMapType);
-
-                    if (loadedPlayerMedals != null) {
-                        playerMedals.clear();
-                        loadedPlayerMedals.forEach((uuidStr, medal) -> {
-                            try {
-                                UUID uuid = UUID.fromString(uuidStr);
-                                playerMedals.put(uuid, medal);
-                            } catch (IllegalArgumentException e) {
-                                // Ignorar UUIDs inválidos
-                            }
-                        });
-                    }
-                }
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
     public void saveMedals() {
-        try {
-            if (!dataDirectory.toFile().exists()) {
-                dataDirectory.toFile().mkdirs();
+        CompletableFuture.runAsync(() -> {
+            try {
+                saveAvailableMedalsToDB();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private void saveAvailableMedalsToDB() throws SQLException {
+        String sql;
+        if (databaseManager.isMySQL()) {
+            sql = "INSERT INTO available_medals (medal_id, symbol, permission, color, created_at, updated_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE " +
+                    "symbol = VALUES(symbol), " +
+                    "permission = VALUES(permission), " +
+                    "color = VALUES(color), " +
+                    "updated_at = VALUES(updated_at)";
+        } else {
+            sql = "INSERT OR REPLACE INTO available_medals (medal_id, symbol, permission, color, created_at, updated_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?)";
+        }
+
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            long currentTime = System.currentTimeMillis();
+
+            for (Map.Entry<String, MedalInfo> entry : availableMedals.entrySet()) {
+                stmt.setString(1, entry.getKey());
+                stmt.setString(2, entry.getValue().getSymbol());
+                stmt.setString(3, entry.getValue().getPermission());
+                stmt.setString(4, entry.getValue().getColor());
+                stmt.setLong(5, currentTime);
+                stmt.setLong(6, currentTime);
+                stmt.addBatch();
             }
 
-            try (Writer writer = new OutputStreamWriter(new FileOutputStream(medalsFile), StandardCharsets.UTF_8)) {
-                gson.toJson(availableMedals, writer);
-            }
-
-            // Salvar medalhas dos jogadores
-            try (Writer writer = new OutputStreamWriter(new FileOutputStream(playerMedalsFile), StandardCharsets.UTF_8)) {
-                Map<String, String> saveMap = new HashMap<>();
-                playerMedals.forEach((uuid, medal) -> saveMap.put(uuid.toString(), medal));
-                gson.toJson(saveMap, writer);
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
+            stmt.executeBatch();
         }
     }
 
+    /**
+     * Retorna apenas a medalha do jogador (sem espaços)
+     */
     public String getPlayerMedal(Player player) {
-        // Verificar se o jogador tem uma medalha selecionada
         String selectedMedal = playerMedals.get(player.getUniqueId());
         if (selectedMedal != null && availableMedals.containsKey(selectedMedal)) {
             MedalInfo medalInfo = availableMedals.get(selectedMedal);
 
-            // Verificar se o jogador tem permissão para usar esta medalha
             if (medalInfo.permission.isEmpty() || player.hasPermission(medalInfo.permission)) {
                 return medalInfo.color + medalInfo.symbol;
             }
         }
-
-        // Se não tiver medalha selecionada ou não tiver permissão, retornar vazio (nenhuma medalha)
         return "";
     }
 
+    /**
+     * Retorna a medalha formatada com espaço APENAS se o jogador tiver medalha
+     */
     public String getFormattedPlayerMedal(Player player) {
         String medal = getPlayerMedal(player);
         return medal.isEmpty() ? "" : medal + " ";
     }
 
+    /**
+     * Obtém a medalha atual do jogador (ID da medalha, não o símbolo)
+     */
+    public String getCurrentPlayerMedal(UUID uuid) {
+        return playerMedals.get(uuid);
+    }
+
     public void setPlayerMedal(UUID uuid, String medalId) {
         playerMedals.put(uuid, medalId);
-        saveMedals(); // Salvar imediatamente
+        setPlayerMedalInDB(uuid, medalId);
+    }
+
+    private void setPlayerMedalInDB(UUID uuid, String medalId) {
+        CompletableFuture.runAsync(() -> {
+            String sql;
+            if (databaseManager.isMySQL()) {
+                sql = "INSERT INTO player_medals (player_uuid, medal_id, updated_at) " +
+                        "VALUES (?, ?, ?) " +
+                        "ON DUPLICATE KEY UPDATE " +
+                        "medal_id = VALUES(medal_id), " +
+                        "updated_at = VALUES(updated_at)";
+            } else {
+                sql = "INSERT OR REPLACE INTO player_medals (player_uuid, medal_id, updated_at) " +
+                        "VALUES (?, ?, ?)";
+            }
+
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setString(1, uuid.toString());
+                stmt.setString(2, medalId);
+                stmt.setLong(3, System.currentTimeMillis());
+                stmt.executeUpdate();
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     public void removePlayerMedal(UUID uuid) {
         playerMedals.remove(uuid);
-        saveMedals(); // Salvar imediatamente
+        removePlayerMedalFromDB(uuid);
+    }
+
+    private void removePlayerMedalFromDB(UUID uuid) {
+        CompletableFuture.runAsync(() -> {
+            String sql = "DELETE FROM player_medals WHERE player_uuid = ?";
+
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setString(1, uuid.toString());
+                stmt.executeUpdate();
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     public Map<String, MedalInfo> getAvailableMedals() {
@@ -174,6 +231,22 @@ public class MedalManager {
 
     public MedalInfo getMedalInfo(String medalId) {
         return availableMedals.get(medalId);
+    }
+
+    public void addAvailableMedal(String medalId, String symbol, String permission, String color) {
+        availableMedals.put(medalId, new MedalInfo(symbol, permission, color));
+        saveMedals();
+    }
+
+    public void removeAvailableMedal(String medalId) {
+        availableMedals.remove(medalId);
+        saveMedals();
+    }
+
+    public CompletableFuture<Void> migrateFromFilesToDatabase() {
+        return CompletableFuture.runAsync(() -> {
+            // Migração já foi feita, dados estão no banco
+        });
     }
 
     public static class MedalInfo {

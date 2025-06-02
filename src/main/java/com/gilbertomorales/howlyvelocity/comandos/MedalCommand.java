@@ -9,6 +9,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 
 import java.util.List;
+import java.util.StringJoiner;
 
 public class MedalCommand implements SimpleCommand {
 
@@ -25,7 +26,7 @@ public class MedalCommand implements SimpleCommand {
         CommandSource source = invocation.source();
 
         if (!(source instanceof Player player)) {
-            source.sendMessage(Component.text("Apenas jogadores podem usar este comando.").color(TextColor.color(255, 85, 85)));
+            source.sendMessage(Component.text("§cApenas jogadores podem usar este comando."));
             return;
         }
 
@@ -37,11 +38,20 @@ public class MedalCommand implements SimpleCommand {
             return;
         }
 
+        String subCommand = args[0].toLowerCase();
+
+        // Comando para remover medalha
+        if (subCommand.equals("remover") || subCommand.equals("remove")) {
+            medalManager.removePlayerMedal(player.getUniqueId());
+            player.sendMessage(Component.text("§aMedalha removida com sucesso! Agora você não possui nenhuma medalha."));
+            return;
+        }
+
         // Selecionar uma medalha
-        String medalId = args[0].toLowerCase();
+        String medalId = subCommand;
 
         if (!medalManager.hasMedal(medalId)) {
-            player.sendMessage(Component.text("Medalha não encontrada. Use /medalha para ver as medalhas disponíveis.").color(TextColor.color(255, 85, 85)));
+            player.sendMessage(Component.text("§cMedalha não encontrada. Use /medalha para ver as medalhas disponíveis."));
             return;
         }
 
@@ -49,7 +59,7 @@ public class MedalCommand implements SimpleCommand {
 
         // Verificar permissão
         if (!medalInfo.getPermission().isEmpty() && !player.hasPermission(medalInfo.getPermission())) {
-            player.sendMessage(Component.text("Você não tem permissão para usar esta medalha.").color(TextColor.color(255, 85, 85)));
+            player.sendMessage(Component.text("§cVocê não tem permissão para usar esta medalha."));
             return;
         }
 
@@ -57,14 +67,13 @@ public class MedalCommand implements SimpleCommand {
         medalManager.setPlayerMedal(player.getUniqueId(), medalId);
 
         if (medalId.equals("nenhuma")) {
-            player.sendMessage(Component.text("Medalha removida com sucesso!").color(TextColor.color(85, 255, 85)));
+            player.sendMessage(Component.text("§aMedalha removida com sucesso!"));
         } else {
             // Criar componente com símbolo e cor
             Component medalComponent = Component.text(medalInfo.getSymbol()).color(getTextColorFromCode(medalInfo.getColor()));
-            Component message = Component.text("Medalha alterada para ")
-                    .color(TextColor.color(85, 255, 85))
+            Component message = Component.text("§aMedalha alterada para ")
                     .append(medalComponent)
-                    .append(Component.text(" com sucesso!").color(TextColor.color(85, 255, 85)));
+                    .append(Component.text(" §acom sucesso!"));
 
             player.sendMessage(message);
         }
@@ -74,59 +83,39 @@ public class MedalCommand implements SimpleCommand {
         List<String> availableMedals = medalManager.getPlayerAvailableMedals(player);
 
         if (availableMedals.isEmpty()) {
-            player.sendMessage(Component.text("Você não tem nenhuma medalha disponível.").color(TextColor.color(255, 85, 85)));
+            player.sendMessage(Component.text("§cVocê não tem nenhuma medalha disponível."));
             return;
         }
 
-        player.sendMessage(Component.text("Medalhas Disponíveis:").color(TextColor.color(255, 255, 85)).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD));
-        player.sendMessage(Component.text("Use /medalha <nome> para selecionar uma medalha").color(TextColor.color(170, 170, 170)));
+        player.sendMessage(Component.text("§e§lMedalhas Disponíveis:"));
+        player.sendMessage(Component.text("§7Use /medalha <nome> para selecionar uma medalha"));
+        player.sendMessage(Component.text("§7Use /medalha remover para remover sua medalha atual"));
         player.sendMessage(Component.text(""));
 
-        // Mostrar medalhas em formato de lista organizada
-        for (String medalId : availableMedals) {
-            MedalManager.MedalInfo medalInfo = medalManager.getMedalInfo(medalId);
-
-            if (medalId.equals("nenhuma")) {
-                Component message = Component.text("• ").color(TextColor.color(170, 170, 170))
-                        .append(Component.text("Nenhuma").color(TextColor.color(255, 255, 255)))
-                        .append(Component.text(" - Remove a medalha atual").color(TextColor.color(170, 170, 170)));
-                player.sendMessage(message);
-            } else {
-                String displayName = capitalizeFirst(medalId);
-
-                Component medalSymbol = Component.text(medalInfo.getSymbol()).color(getTextColorFromCode(medalInfo.getColor()));
-                Component message = Component.text("• ").color(TextColor.color(170, 170, 170))
-                        .append(medalSymbol)
-                        .append(Component.text(" " + displayName).color(TextColor.color(255, 255, 255)))
-                        .append(Component.text(" - " + medalId).color(TextColor.color(170, 170, 170)));
-
-                player.sendMessage(message);
-            }
-        }
-
         // Mostrar medalha atual
-        String currentMedal = medalManager.getPlayerMedal(player);
-        if (!currentMedal.isEmpty()) {
-            player.sendMessage(Component.text(""));
+        String currentMedal = medalManager.getCurrentPlayerMedal(player.getUniqueId());
+        if (currentMedal != null) {
+            MedalManager.MedalInfo currentMedalInfo = medalManager.getMedalInfo(currentMedal);
+            if (currentMedalInfo != null) {
+                Component medalComponent = Component.text(currentMedalInfo.getSymbol()).color(getTextColorFromCode(currentMedalInfo.getColor()));
+                player.sendMessage(Component.text("§aMedalha atual: ").append(medalComponent));
+            }
+        } else {
+            player.sendMessage(Component.text("§7Medalha atual: Nenhuma"));
+        }
+        player.sendMessage(Component.text(""));
 
-            // Extrair símbolo e cor da medalha atual
-            String selectedMedal = medalManager.getPlayerAvailableMedals(player).stream()
-                    .filter(medal -> {
-                        MedalManager.MedalInfo info = medalManager.getMedalInfo(medal);
-                        return currentMedal.equals(info.getColoredSymbol());
-                    })
-                    .findFirst()
-                    .orElse("");
-
-            if (!selectedMedal.isEmpty()) {
-                MedalManager.MedalInfo currentInfo = medalManager.getMedalInfo(selectedMedal);
-                Component currentMedalComponent = Component.text(currentInfo.getSymbol()).color(getTextColorFromCode(currentInfo.getColor()));
-                Component message = Component.text("Medalha atual: ")
-                        .color(TextColor.color(85, 255, 85))
-                        .append(currentMedalComponent);
-                player.sendMessage(message);
+        // Listar medalhas disponíveis
+        StringJoiner medalsJoiner = new StringJoiner("§7, ");
+        for (String medalId : availableMedals) {
+            if (!medalId.equals("nenhuma")) {
+                MedalManager.MedalInfo medalInfo = medalManager.getMedalInfo(medalId);
+                String medalDisplay = medalInfo.getColor() + medalInfo.getSymbol() + " §f" + capitalizeFirst(medalId);
+                medalsJoiner.add(medalDisplay);
             }
         }
+
+        player.sendMessage(Component.text("§fMedalhas disponíveis: " + medalsJoiner.toString()));
     }
 
     private String capitalizeFirst(String str) {
@@ -171,7 +160,12 @@ public class MedalCommand implements SimpleCommand {
 
         if (invocation.arguments().length == 1) {
             String arg = invocation.arguments()[0].toLowerCase();
-            return medalManager.getPlayerAvailableMedals(player).stream()
+
+            // Adicionar "remover" às sugestões
+            List<String> suggestions = new java.util.ArrayList<>(medalManager.getPlayerAvailableMedals(player));
+            suggestions.add("remover");
+
+            return suggestions.stream()
                     .filter(medal -> medal.toLowerCase().startsWith(arg))
                     .toList();
         }

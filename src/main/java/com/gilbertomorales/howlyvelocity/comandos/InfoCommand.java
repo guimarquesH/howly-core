@@ -58,14 +58,25 @@ public class InfoCommand implements SimpleCommand {
             .orElse("Desconhecido");
 
         sender.sendMessage(Component.text(" "));
-        sender.sendMessage(Component.text("§eInformações de " + tagManager.getFormattedPlayerName(target) + "§e:"));
+        sender.sendMessage(Component.text("§eInformações:"));
+        sender.sendMessage(Component.text(" "));
+        sender.sendMessage(Component.text("§fUsuário: §7" + target.getUsername()));
+        sender.sendMessage(Component.text("§fGrupo: §7Indefinido"));
         sender.sendMessage(Component.text("§fUUID: §7" + target.getUniqueId().toString()));
-        sender.sendMessage(Component.text("§fServidor atual: §7" + serverName));
-        sender.sendMessage(Component.text("§fPing: §7" + target.getPing() + "ms"));
+        sender.sendMessage(Component.text(" "));
+        String currentTagId = tagManager.getCurrentPlayerTag(target.getUniqueId());
+        if (currentTagId == null || currentTagId.isEmpty()) {
+            sender.sendMessage(Component.text("§fTag: §7Nenhuma"));
+        } else {
+            TagManager.TagInfo tagInfo = tagManager.getTagInfo(currentTagId);
+            sender.sendMessage(Component.text("§fTag: " + tagInfo.getDisplay()));
+        } sender.sendMessage(Component.text("§fMedalha: §7" + medalManager.getPlayerMedal(target)));
+        sender.sendMessage(Component.text(" "));
+        sender.sendMessage(Component.text("§fConexão: §7" + serverName));
         sender.sendMessage(Component.text("§fVersão: §7" + target.getProtocolVersion().getName()));
-        sender.sendMessage(Component.text("§fMedalha: §7" + medalManager.getPlayerMedal(target)));
+        sender.sendMessage(Component.text("§fPing: §7" + target.getPing() + "ms"));
+        sender.sendMessage(Component.text(" "));
 
-        // Verificar punições ativas
         punishmentAPI.getActiveBan(target.getUniqueId()).thenAccept(ban -> {
             punishmentAPI.getActiveMute(target.getUniqueId()).thenAccept(mute -> {
                 if (ban != null || mute != null) {

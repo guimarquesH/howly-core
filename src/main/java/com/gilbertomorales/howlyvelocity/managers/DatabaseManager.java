@@ -5,13 +5,9 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.stream.Collectors;
 
 public class DatabaseManager {
 
@@ -38,19 +34,28 @@ public class DatabaseManager {
     private void setupDataSource() {
         HikariConfig config = new HikariConfig();
 
-        if (configManager.isMySQL()) {
-            config.setJdbcUrl("jdbc:mysql://" + configManager.getDatabaseHost() + ":" +
-                    configManager.getDatabasePort() + "/" + configManager.getDatabaseName() +
-                    "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC");
-            config.setUsername(configManager.getDatabaseUsername());
-            config.setPassword(configManager.getDatabasePassword());
-            config.setDriverClassName("com.mysql.cj.jdbc.Driver");
-        } else {
-            // H2 Database (local)
-            config.setJdbcUrl("jdbc:h2:./plugins/HowlyVelocity/database;MODE=MySQL;DATABASE_TO_LOWER=TRUE");
-            config.setUsername("sa");
-            config.setPassword("");
-            config.setDriverClassName("org.h2.Driver");
+        String databaseType = configManager.getDatabaseType().toLowerCase();
+
+        switch (databaseType) {
+            case "mysql" -> {
+                config.setJdbcUrl("jdbc:mysql://" + configManager.getDatabaseHost() + ":" +
+                        configManager.getDatabasePort() + "/" + configManager.getDatabaseName() +
+                        "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=utf8");
+                config.setUsername(configManager.getDatabaseUsername());
+                config.setPassword(configManager.getDatabasePassword());
+                config.setDriverClassName("com.mysql.cj.jdbc.Driver");
+            }
+            case "h2" -> {
+                config.setJdbcUrl("jdbc:h2:./plugins/HowlyVelocity/database;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE");
+                config.setUsername("sa");
+                config.setPassword("");
+                config.setDriverClassName("org.h2.Driver");
+            }
+            case "sqlite" -> {
+                config.setJdbcUrl("jdbc:sqlite:./plugins/HowlyVelocity/database.db");
+                config.setDriverClassName("org.sqlite.JDBC");
+            }
+            default -> throw new IllegalArgumentException("Tipo de banco de dados não suportado: " + databaseType);
         }
 
         // Configurações de pool
@@ -60,29 +65,26 @@ public class DatabaseManager {
         config.setIdleTimeout(600000);
         config.setMaxLifetime(1800000);
 
+        // Configurações específicas para UTF-8
+        config.addDataSourceProperty("characterEncoding", "utf8");
+        config.addDataSourceProperty("useUnicode", "true");
+
         dataSource = new HikariDataSource(config);
-        logger.info("Conexão com banco de dados estabelecida!");
+        logger.info("Conexão com banco de dados " + databaseType.toUpperCase() + " estabelecida!");
     }
 
     private void createTables() throws SQLException {
+        executeDefaultSchema();
+    }
+
+    private void executeDefaultSchema() throws SQLException {
+        String databaseType = configManager.getDatabaseType().toLowerCase();
+
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
 
-            // Tabela de dados dos jogadores
-            stmt.execute("""
-                CREATE TABLE IF NOT EXISTS player_data (
-                    uuid VARCHAR(36) PRIMARY KEY,
-                    username VARCHAR(16) NOT NULL,
-                    first_join BIGINT NOT NULL,
-                    last_join BIGINT NOT NULL,
-                    
-                    INDEX idx_username (username),
-                    INDEX idx_last_join (last_join)
-                )
-            """);
-
-            // Tabela de punições
-            if (configManager.isMySQL()) {
+            // Schema para punições
+            if (databaseType.equals("mysql")) {
                 stmt.execute("""
                     CREATE TABLE IF NOT EXISTS punishments (
                         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -101,8 +103,8 @@ public class DatabaseManager {
                         INDEX idx_created_at (created_at)
                     )
                 """);
-            } else {
-                // H2 não suporta ENUM, usar VARCHAR com CHECK
+            } else if (databaseType.equals("h2")) {
+                // H2 - criar tabela sem índices inline
                 stmt.execute("""
                     CREATE TABLE IF NOT EXISTS punishments (
                         id INT AUTO_INCREMENT PRIMARY KEY,
@@ -117,44 +119,269 @@ public class DatabaseManager {
                 """);
 
                 // Criar índices separadamente para H2
-                stmt.execute("CREATE INDEX IF NOT EXISTS idx_player_uuid ON punishments (player_uuid)");
-                stmt.execute("CREATE INDEX IF NOT EXISTS idx_type ON punishments (type)");
-                stmt.execute("CREATE INDEX IF NOT EXISTS idx_active ON punishments (active)");
-                stmt.execute("CREATE INDEX IF NOT EXISTS idx_expires_at ON punishments (expires_at)");
-                stmt.execute("CREATE INDEX IF NOT EXISTS idx_created_at ON punishments (created_at)");
+                createIndexIfNotExists(stmt, "idx_punishments_player_uuid", "punishments", "player_uuid");
+                createIndexIfNotExists(stmt, "idx_punishments_type", "punishments", "type");
+                createIndexIfNotExists(stmt, "idx_punishments_active", "punishments", "active");
+                createIndexIfNotExists(stmt, "idx_punishments_expires_at", "punishments", "expires_at");
+                createIndexIfNotExists(stmt, "idx_punishments_created_at", "punishments", "created_at");
+
+            } else { // SQLite
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS punishments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        player_uuid TEXT NOT NULL,
+                        type TEXT NOT NULL CHECK (type IN ('BAN', 'KICK', 'MUTE')),
+                        reason TEXT NOT NULL,
+                        punisher TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        expires_at INTEGER,
+                        active INTEGER DEFAULT 1
+                    )
+                """);
             }
+
+            // Schema para tags
+            if (databaseType.equals("mysql")) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS available_tags (
+                        tag_id VARCHAR(50) PRIMARY KEY,
+                        display_text VARCHAR(100) NOT NULL,
+                        permission VARCHAR(100) DEFAULT '',
+                        name_color VARCHAR(10) NOT NULL,
+                        created_at BIGINT NOT NULL,
+                        updated_at BIGINT NOT NULL
+                    )
+                """);
+
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS player_tags (
+                        player_uuid VARCHAR(36) PRIMARY KEY,
+                        tag_id VARCHAR(50) NOT NULL,
+                        updated_at BIGINT NOT NULL,
+                        
+                        INDEX idx_tag_id (tag_id),
+                        INDEX idx_updated_at (updated_at)
+                    )
+                """);
+            } else if (databaseType.equals("h2")) {
+                // H2 - criar tabelas sem índices inline
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS available_tags (
+                        tag_id VARCHAR(50) PRIMARY KEY,
+                        display_text VARCHAR(100) NOT NULL,
+                        permission VARCHAR(100) DEFAULT '',
+                        name_color VARCHAR(10) NOT NULL,
+                        created_at BIGINT NOT NULL,
+                        updated_at BIGINT NOT NULL
+                    )
+                """);
+
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS player_tags (
+                        player_uuid VARCHAR(36) PRIMARY KEY,
+                        tag_id VARCHAR(50) NOT NULL,
+                        updated_at BIGINT NOT NULL
+                    )
+                """);
+
+                // Criar índices separadamente para H2
+                createIndexIfNotExists(stmt, "idx_player_tags_tag_id", "player_tags", "tag_id");
+                createIndexIfNotExists(stmt, "idx_player_tags_updated_at", "player_tags", "updated_at");
+
+            } else { // SQLite
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS available_tags (
+                        tag_id TEXT PRIMARY KEY,
+                        display_text TEXT NOT NULL,
+                        permission TEXT DEFAULT '',
+                        name_color TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                """);
+
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS player_tags (
+                        player_uuid TEXT PRIMARY KEY,
+                        tag_id TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        FOREIGN KEY (tag_id) REFERENCES available_tags(tag_id)
+                    )
+                """);
+            }
+
+            // Schema para medalhas
+            if (databaseType.equals("mysql")) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS available_medals (
+                        medal_id VARCHAR(50) PRIMARY KEY,
+                        symbol VARCHAR(10) NOT NULL,
+                        permission VARCHAR(100) DEFAULT '',
+                        color VARCHAR(10) NOT NULL,
+                        created_at BIGINT NOT NULL,
+                        updated_at BIGINT NOT NULL
+                    )
+                """);
+
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS player_medals (
+                        player_uuid VARCHAR(36) PRIMARY KEY,
+                        medal_id VARCHAR(50) NOT NULL,
+                        updated_at BIGINT NOT NULL,
+                        
+                        INDEX idx_medal_id (medal_id),
+                        INDEX idx_updated_at (updated_at)
+                    )
+                """);
+            } else if (databaseType.equals("h2")) {
+                // H2 - criar tabelas sem índices inline
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS available_medals (
+                        medal_id VARCHAR(50) PRIMARY KEY,
+                        symbol VARCHAR(10) NOT NULL,
+                        permission VARCHAR(100) DEFAULT '',
+                        color VARCHAR(10) NOT NULL,
+                        created_at BIGINT NOT NULL,
+                        updated_at BIGINT NOT NULL
+                    )
+                """);
+
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS player_medals (
+                        player_uuid VARCHAR(36) PRIMARY KEY,
+                        medal_id VARCHAR(50) NOT NULL,
+                        updated_at BIGINT NOT NULL
+                    )
+                """);
+
+                // Criar índices separadamente para H2
+                createIndexIfNotExists(stmt, "idx_player_medals_medal_id", "player_medals", "medal_id");
+                createIndexIfNotExists(stmt, "idx_player_medals_updated_at", "player_medals", "updated_at");
+
+            } else { // SQLite
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS available_medals (
+                        medal_id TEXT PRIMARY KEY,
+                        symbol TEXT NOT NULL,
+                        permission TEXT DEFAULT '',
+                        color TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        updated_at INTEGER NOT NULL
+                    )
+                """);
+
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS player_medals (
+                        player_uuid TEXT PRIMARY KEY,
+                        medal_id TEXT NOT NULL,
+                        updated_at INTEGER NOT NULL,
+                        FOREIGN KEY (medal_id) REFERENCES available_medals(medal_id)
+                    )
+                """);
+            }
+
+            // Inserir dados padrão
+            insertDefaultData(stmt, databaseType);
 
             logger.info("Tabelas criadas com sucesso!");
         }
     }
 
-    public void executeMigrationScript(String scriptName) throws SQLException {
-        try (InputStream inputStream = getClass().getResourceAsStream("/" + scriptName)) {
-            if (inputStream == null) {
-                logger.warn("Script de migração não encontrado: " + scriptName);
-                return;
+    private void createIndexIfNotExists(Statement stmt, String indexName, String tableName, String columnName) {
+        try {
+            stmt.execute("CREATE INDEX IF NOT EXISTS " + indexName + " ON " + tableName + " (" + columnName + ")");
+        } catch (SQLException e) {
+            // Ignorar se o índice já existir
+            if (!e.getMessage().contains("already exists")) {
+                logger.warn("Erro ao criar índice " + indexName + ": " + e.getMessage());
+            }
+        }
+    }
+
+    private void insertDefaultData(Statement stmt, String databaseType) throws SQLException {
+        long currentTime = System.currentTimeMillis();
+
+        // Para H2, usar MERGE (equivalente ao INSERT OR IGNORE)
+        if (databaseType.equals("h2")) {
+            // Tag padrão
+            stmt.execute(String.format("""
+                MERGE INTO available_tags (tag_id, display_text, permission, name_color, created_at, updated_at) 
+                VALUES ('Nenhuma', '', '', '§7', %d, %d)
+            """, currentTime, currentTime));
+
+            // Medalha padrão
+            stmt.execute(String.format("""
+                MERGE INTO available_medals (medal_id, symbol, permission, color, created_at, updated_at) 
+                VALUES ('nenhuma', '', '', '', %d, %d)
+            """, currentTime, currentTime));
+
+            // Medalhas padrão
+            String[][] defaultMedals = {
+                    {"estrela", "★", "howly.medal.estrela", "§e"},
+                    {"coracao", "♥", "howly.medal.coracao", "§c"},
+                    {"coroa", "♔", "howly.medal.coroa", "§6"},
+                    {"diamante", "♦", "howly.medal.diamante", "§b"},
+                    {"cafe", "☕", "howly.medal.cafe", "§6"},
+                    {"sol", "☀", "howly.medal.sol", "§e"},
+                    {"lua", "☽", "howly.medal.lua", "§9"},
+                    {"musica", "♪", "howly.medal.musica", "§d"},
+                    {"flor", "✿", "howly.medal.flor", "§a"},
+                    {"raio", "⚡", "howly.medal.raio", "§e"},
+                    {"fogo", "♨", "howly.medal.fogo", "§c"},
+                    {"gelo", "❄", "howly.medal.gelo", "§f"},
+                    {"trevo", "♣", "howly.medal.trevo", "§a"},
+                    {"espada", "⚔", "howly.medal.espada", "§7"},
+                    {"escudo", "⛨", "howly.medal.escudo", "§8"}
+            };
+
+            for (String[] medal : defaultMedals) {
+                stmt.execute(String.format("""
+                    MERGE INTO available_medals (medal_id, symbol, permission, color, created_at, updated_at) 
+                    VALUES ('%s', '%s', '%s', '%s', %d, %d)
+                """, medal[0], medal[1], medal[2], medal[3], currentTime, currentTime));
             }
 
-            String script = new BufferedReader(new InputStreamReader(inputStream))
-                    .lines()
-                    .collect(Collectors.joining("\n"));
+        } else {
+            // Para MySQL e SQLite
+            String insertOrIgnore = databaseType.equals("mysql") ? "INSERT IGNORE INTO" : "INSERT OR IGNORE INTO";
 
-            try (Connection conn = getConnection();
-                 Statement stmt = conn.createStatement()) {
+            // Tag padrão
+            stmt.execute(String.format("""
+                %s available_tags (tag_id, display_text, permission, name_color, created_at, updated_at) 
+                VALUES ('Nenhuma', '', '', '§7', %d, %d)
+            """, insertOrIgnore, currentTime, currentTime));
 
-                // Executar cada comando SQL separadamente
-                String[] commands = script.split(";");
-                for (String command : commands) {
-                    command = command.trim();
-                    if (!command.isEmpty() && !command.startsWith("--")) {
-                        stmt.execute(command);
-                    }
-                }
+            // Medalha padrão
+            stmt.execute(String.format("""
+                %s available_medals (medal_id, symbol, permission, color, created_at, updated_at) 
+                VALUES ('nenhuma', '', '', '', %d, %d)
+            """, insertOrIgnore, currentTime, currentTime));
+
+            // Medalhas padrão
+            String[][] defaultMedals = {
+                    {"estrela", "★", "howly.medal.estrela", "§e"},
+                    {"coracao", "♥", "howly.medal.coracao", "§c"},
+                    {"coroa", "♔", "howly.medal.coroa", "§6"},
+                    {"diamante", "♦", "howly.medal.diamante", "§b"},
+                    {"cafe", "☕", "howly.medal.cafe", "§6"},
+                    {"sol", "☀", "howly.medal.sol", "§e"},
+                    {"lua", "☽", "howly.medal.lua", "§9"},
+                    {"musica", "♪", "howly.medal.musica", "§d"},
+                    {"flor", "✿", "howly.medal.flor", "§a"},
+                    {"raio", "⚡", "howly.medal.raio", "§e"},
+                    {"fogo", "♨", "howly.medal.fogo", "§c"},
+                    {"gelo", "❄", "howly.medal.gelo", "§f"},
+                    {"trevo", "♣", "howly.medal.trevo", "§a"},
+                    {"espada", "⚔", "howly.medal.espada", "§7"},
+                    {"escudo", "⛨", "howly.medal.escudo", "§8"}
+            };
+
+            for (String[] medal : defaultMedals) {
+                stmt.execute(String.format("""
+                    %s available_medals (medal_id, symbol, permission, color, created_at, updated_at) 
+                    VALUES ('%s', '%s', '%s', '%s', %d, %d)
+                """, insertOrIgnore, medal[0], medal[1], medal[2], medal[3], currentTime, currentTime));
             }
-
-        } catch (Exception e) {
-            logger.error("Erro ao executar script de migração: " + e.getMessage());
-            throw new SQLException(e);
         }
     }
 
@@ -168,7 +395,16 @@ public class DatabaseManager {
         }
     }
 
+    // Métodos de conveniência
     public boolean isMySQL() {
         return configManager.isMySQL();
+    }
+
+    public boolean isH2() {
+        return configManager.isH2();
+    }
+
+    public boolean isSQLite() {
+        return configManager.isSQLite();
     }
 }

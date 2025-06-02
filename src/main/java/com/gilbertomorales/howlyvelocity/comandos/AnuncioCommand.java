@@ -34,12 +34,13 @@ public class AnuncioCommand implements SimpleCommand {
         }
 
         String message = String.join(" ", args);
-        String formattedMessage = Cores.colorir("&8[&6ANÚNCIO&8] &f" + message);
+        String formattedMessage = Cores.colorir("&d&l[ANÚNCIO] &f" + message);
 
-        // Enviar para todos os jogadores online
-        server.getAllPlayers().forEach(player -> 
-            player.sendMessage(Component.text(formattedMessage))
-        );
+        server.getAllPlayers().forEach(player -> {
+            player.sendMessage(Component.text(" "));
+            player.sendMessage(Component.text(formattedMessage));
+            player.sendMessage(Component.text(" "));
+        });
 
         sender.sendMessage(Component.text("§aAnúncio enviado para todos os jogadores online!"));
     }

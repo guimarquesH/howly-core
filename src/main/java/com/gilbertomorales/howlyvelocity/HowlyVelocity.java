@@ -51,6 +51,10 @@ public class HowlyVelocity {
         this.logger = logger;
         this.dataDirectory = dataDirectory;
         instance = this;
+
+        // Definir codificação UTF-8 para o sistema
+        System.setProperty("file.encoding", "UTF-8");
+        System.setProperty("sun.jnu.encoding", "UTF-8");
     }
 
     @Subscribe
@@ -66,25 +70,32 @@ public class HowlyVelocity {
             databaseManager = new DatabaseManager(configManager, logger);
             databaseManager.initialize();
 
-            // Inicializar gerenciadores
+            // Inicializar gerenciadores básicos
             playerDataManager = new PlayerDataManager(databaseManager);
+
+            // Inicializar TagManager e MedalManager DIRETO com banco de dados
             tagManager = new TagManager(dataDirectory);
             tagManager.loadTags();
-            medalManager = new MedalManager(dataDirectory);
+
+            medalManager = new MedalManager(databaseManager);
             medalManager.loadMedals();
+
             ignoreManager = new IgnoreManager(dataDirectory);
             ignoreManager.loadIgnoreData();
 
-            // Inicializar ChatManager com o construtor correto
+            // Inicializar ChatManager SEM a API ainda
             chatManager = new ChatManager(server, tagManager, medalManager);
 
             // Inicializar API
             api = new HowlyAPI(this);
 
+            // AGORA inicializar a PunishmentAPI no ChatManager
+            chatManager.initializePunishmentAPI();
+
             // Inicializar gerenciador de placeholders
             placeholderManager = new PlaceholderManager(tagManager, medalManager);
 
-            // Registrar listeners com todos os argumentos necessários
+            // Registrar listeners
             server.getEventManager().register(this, new PlayerListener(server, logger, playerDataManager, tagManager));
             server.getEventManager().register(this, new ChatListener(server, api, tagManager, medalManager, ignoreManager, chatManager));
 
@@ -93,6 +104,7 @@ public class HowlyVelocity {
 
             logger.info(LogColor.success("HowlyVelocity", "Plugin carregado com sucesso!"));
             logger.info(LogColor.info("HowlyVelocity", "Banco de dados: " + configManager.getDatabaseType().toUpperCase()));
+            logger.info(LogColor.info("HowlyVelocity", "Tags e medalhas sendo salvos no banco de dados!"));
 
         } catch (Exception e) {
             logger.error(LogColor.error("HowlyVelocity", "Erro ao carregar plugin: " + e.getMessage()));
@@ -131,7 +143,6 @@ public class HowlyVelocity {
         commandManager.register("mute", new MuteCommand(server, tagManager));
         commandManager.register("unban", new UnbanCommand(server, tagManager));
         commandManager.register("unmute", new UnmuteCommand(server, tagManager));
-
         logger.info(LogColor.success("HowlyVelocity", "Comandos registrados com sucesso!"));
     }
 

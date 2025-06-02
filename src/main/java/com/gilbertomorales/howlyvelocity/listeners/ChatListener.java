@@ -17,7 +17,7 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.format.TextColor;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -56,9 +56,9 @@ public class ChatListener {
             if (mute != null) {
                 // Jogador está mutado, informar ao jogador
                 String timeRemaining = mute.isPermanent() ? "Permanente" : TimeUtils.formatDuration(mute.getRemainingTime());
-                player.sendMessage(Component.text("§cVocê está silenciado e não pode falar no chat."));
-                player.sendMessage(Component.text("§cMotivo: §f" + mute.getReason()));
-                player.sendMessage(Component.text("§cTempo restante: §f" + timeRemaining));
+                player.sendMessage(Component.text("Você está silenciado e não pode falar no chat.").color(TextColor.color(255, 85, 85)));
+                player.sendMessage(Component.text("Motivo: ").color(TextColor.color(255, 85, 85)).append(Component.text(mute.getReason()).color(TextColor.color(255, 255, 255))));
+                player.sendMessage(Component.text("Tempo restante: ").color(TextColor.color(255, 85, 85)).append(Component.text(timeRemaining).color(TextColor.color(255, 255, 255))));
             } else {
                 // Jogador não está mutado, processar mensagem
                 String coloredMessage = ChatUtils.applyColors(message, player);
@@ -77,28 +77,71 @@ public class ChatListener {
         }
 
         RegisteredServer currentServer = serverConnection.get().getServer();
-        String formattedMessage = formatMessage(sender, message);
-
-        // Usar LegacyComponentSerializer para garantir que Unicode seja processado corretamente
-        Component messageComponent = LegacyComponentSerializer.legacySection().deserialize(formattedMessage);
+        Component formattedMessage = formatMessage(sender, message);
 
         // Enviar para todos os jogadores no mesmo servidor, exceto os que estão ignorando o remetente
         for (Player player : currentServer.getPlayersConnected()) {
             // Verificar se o jogador não está ignorando o remetente
             if (!ignoreManager.isIgnoring(player.getUniqueId(), sender.getUniqueId())) {
-                player.sendMessage(messageComponent);
+                player.sendMessage(formattedMessage);
             }
         }
     }
 
     /**
-     * Formata mensagem para chat do servidor
+     * Formata mensagem para chat do servidor usando Components
      */
-    private String formatMessage(Player sender, String message) {
-        String medal = medalManager.getFormattedPlayerMedal(sender);
-        String tag = tagManager.getPlayerTag(sender);
-        String nameColor = tagManager.getPlayerNameColor(sender);
+    private Component formatMessage(Player sender, String message) {
+        Component finalMessage = Component.empty();
 
-        return medal + tag + " " + nameColor + sender.getUsername() + "§7: §f" + message;
+        // Adicionar medalha se existir
+        String medalString = medalManager.getFormattedPlayerMedal(sender);
+        if (!medalString.isEmpty()) {
+            finalMessage = finalMessage.append(Component.text(medalString));
+        }
+
+        // Adicionar tag se existir
+        String tagString = tagManager.getFormattedPlayerTag(sender);
+        if (!tagString.isEmpty()) {
+            finalMessage = finalMessage.append(Component.text(tagString));
+        }
+
+        // Adicionar nome do jogador
+        String nameColor = tagManager.getPlayerNameColor(sender);
+        TextColor playerNameColor = getTextColorFromCode(nameColor);
+        finalMessage = finalMessage.append(Component.text(sender.getUsername()).color(playerNameColor));
+
+        // Adicionar dois pontos e mensagem
+        finalMessage = finalMessage.append(Component.text(": ").color(TextColor.color(170, 170, 170)))
+                .append(Component.text(message).color(TextColor.color(255, 255, 255)));
+
+        return finalMessage;
+    }
+
+    private TextColor getTextColorFromCode(String colorCode) {
+        if (colorCode == null || colorCode.isEmpty()) {
+            return TextColor.color(255, 255, 255);
+        }
+
+        char code = colorCode.charAt(colorCode.length() - 1);
+        return switch (code) {
+            case '0' -> TextColor.color(0, 0, 0);          // Preto
+            case '1' -> TextColor.color(0, 0, 170);        // Azul escuro
+            case '2' -> TextColor.color(0, 170, 0);        // Verde escuro
+            case '3' -> TextColor.color(0, 170, 170);      // Ciano
+            case '4' -> TextColor.color(170, 0, 0);        // Vermelho escuro
+            case '5' -> TextColor.color(170, 0, 170);      // Roxo
+            case '6' -> TextColor.color(255, 170, 0);      // Dourado
+            case '7' -> TextColor.color(170, 170, 170);    // Cinza
+            case '8' -> TextColor.color(85, 85, 85);       // Cinza escuro
+            case '9' -> TextColor.color(85, 85, 255);      // Azul
+            case 'a' -> TextColor.color(85, 255, 85);      // Verde
+            case 'b' -> TextColor.color(85, 255, 255);     // Azul claro
+            case 'c' -> TextColor.color(255, 85, 85);      // Vermelho
+            case 'd' -> TextColor.color(255, 85, 255);     // Rosa
+            case 'e' -> TextColor.color(255, 255, 85);     // Amarelo
+            case 'f' -> TextColor.color(255, 255, 255);    // Branco
+            default -> TextColor.color(255, 255, 255);
+        };
     }
 }

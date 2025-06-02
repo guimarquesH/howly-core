@@ -17,7 +17,6 @@ public class TagManager {
     private final Gson gson;
 
     private final Map<String, TagInfo> availableTags = new LinkedHashMap<>();
-
     private final Map<UUID, String> playerTags = new HashMap<>();
 
     public TagManager(Path dataDirectory) {
@@ -29,7 +28,8 @@ public class TagManager {
     }
 
     private void initDefaultTags() {
-        availableTags.put("Nenhuma", new TagInfo("", "", "§7"));
+        // Não adicionar "Nenhuma" como tag real
+        // Tags serão adicionadas conforme necessário
     }
 
     public void loadTags() {
@@ -96,6 +96,9 @@ public class TagManager {
         }
     }
 
+    /**
+     * Retorna apenas a tag do jogador (sem espaços)
+     */
     public String getPlayerTag(Player player) {
         String selectedTag = playerTags.get(player.getUniqueId());
         if (selectedTag != null && availableTags.containsKey(selectedTag)) {
@@ -105,12 +108,32 @@ public class TagManager {
                 return tagInfo.display;
             }
         }
-        return "§7";
+        // Retornar string vazia se não tiver tag
+        return "";
     }
 
+    /**
+     * Retorna a tag formatada com espaço APENAS se o jogador tiver tag
+     */
+    public String getFormattedPlayerTag(Player player) {
+        String tag = getPlayerTag(player);
+        return tag.isEmpty() ? "" : tag + " ";
+    }
+
+    /**
+     * Retorna o nome completo do jogador (tag + nome) formatado corretamente
+     */
     public String getFormattedPlayerName(Player player) {
         String tag = getPlayerTag(player);
-        return tag.isEmpty() ? "§f" + player.getUsername() : tag + " §f" + player.getUsername();
+        String nameColor = getPlayerNameColor(player);
+
+        if (tag.isEmpty()) {
+            // Sem tag: apenas cor + nome (sem espaços extras)
+            return nameColor + player.getUsername();
+        } else {
+            // Com tag: tag + espaço + cor + nome
+            return tag + " " + nameColor + player.getUsername();
+        }
     }
 
     public String getPlayerNameColor(Player player) {
@@ -125,7 +148,7 @@ public class TagManager {
             }
         }
 
-        // Cor padrão se nada for encontrado
+        // Cor padrão se não tiver tag
         return "§7";
     }
 
@@ -137,6 +160,13 @@ public class TagManager {
     public void removePlayerTag(UUID uuid) {
         playerTags.remove(uuid);
         saveTags(); // Salvar imediatamente
+    }
+
+    /**
+     * Obtém a tag atual do jogador (ID da tag, não o display)
+     */
+    public String getCurrentPlayerTag(UUID uuid) {
+        return playerTags.get(uuid);
     }
 
     public Map<String, TagInfo> getAvailableTags() {
@@ -164,6 +194,22 @@ public class TagManager {
 
     public TagInfo getTagInfo(String tagId) {
         return availableTags.get(tagId);
+    }
+
+    /**
+     * Adiciona uma nova tag disponível (para uso administrativo)
+     */
+    public void addAvailableTag(String tagId, String display, String permission, String nameColor) {
+        availableTags.put(tagId, new TagInfo(display, permission, nameColor));
+        saveTags();
+    }
+
+    /**
+     * Remove uma tag disponível (para uso administrativo)
+     */
+    public void removeAvailableTag(String tagId) {
+        availableTags.remove(tagId);
+        saveTags();
     }
 
     public static class TagInfo {

@@ -35,7 +35,6 @@ public class BanCommand implements SimpleCommand {
     public void execute(Invocation invocation) {
         CommandSource sender = invocation.source();
 
-        // Verificar permissão apenas se for jogador
         if (sender instanceof Player player) {
             if (!player.hasPermission("howly.moderador")) {
                 sender.sendMessage(Component.text("§cVocê precisa ser do grupo §2Moderador §cou superior para usar este comando."));
@@ -47,10 +46,8 @@ public class BanCommand implements SimpleCommand {
         if (args.length < 3) {
             if (sender instanceof Player) {
                 sender.sendMessage(Component.text("§cUso: /ban <jogador> <tempo> <motivo>"));
-                sender.sendMessage(Component.text("§7Exemplo de tempo: 1d, 2h, 30m, 1w, perm"));
             } else {
                 logger.info(LogColor.error("Ban", "Uso: /ban <jogador> <tempo> <motivo>"));
-                logger.info(LogColor.info("Ban", "Exemplo de tempo: 1d, 2h, 30m, 1w, perm"));
             }
             return;
         }

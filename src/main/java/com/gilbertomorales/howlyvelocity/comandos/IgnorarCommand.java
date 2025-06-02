@@ -187,7 +187,6 @@ public class IgnorarCommand implements SimpleCommand {
     }
 
     private void sendUsage(Player player) {
-        player.sendMessage(Component.text("§c§lUso do comando /ignorar:"));
         player.sendMessage(Component.text("§e/ignorar add <jogador> §7- Adiciona um jogador à lista de ignorados"));
         player.sendMessage(Component.text("§e/ignorar remover <jogador> §7- Remove um jogador da lista de ignorados"));
         player.sendMessage(Component.text("§e/ignorar lista §7- Mostra todos os jogadores ignorados"));

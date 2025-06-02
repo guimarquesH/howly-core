@@ -50,11 +50,13 @@ public class TellCommand implements SimpleCommand {
 
         Player target = targetOptional.get();
 
+        // Não permitir enviar mensagem para si mesmo
         if (target.equals(sender)) {
             sender.sendMessage(Component.text("Você não pode enviar mensagens para si mesmo.").color(TextColor.color(255, 85, 85)));
             return;
         }
 
+        // Verificar se o destinatário está ignorando o remetente
         if (ignoreManager.isIgnoring(target.getUniqueId(), sender.getUniqueId())) {
             sender.sendMessage(Component.text("Este jogador está te ignorando.").color(TextColor.color(255, 85, 85)));
             return;
@@ -82,18 +84,18 @@ public class TellCommand implements SimpleCommand {
     private Component createTellMessage(String direction, Player displayPlayer, Player contextPlayer, String message) {
         Component finalMessage = Component.text("Mensagem " + direction + " ").color(TextColor.color(85, 85, 85));
 
-        // Obter tag do jogador que será exibido
+        // Obter tag do jogador que será exibido (apenas se tiver)
         String tag = tagManager.getPlayerTag(displayPlayer);
         String nameColor = tagManager.getPlayerNameColor(displayPlayer);
 
-        // Adicionar tag se existir
+        // Adicionar tag se existir (SEM espaço extra se não tiver tag)
         if (!tag.isEmpty()) {
-            finalMessage = finalMessage.append(Component.text(tag));
+            finalMessage = finalMessage.append(Component.text(tag + " "));
         }
 
         // Adicionar nome do jogador
         TextColor playerNameColor = getTextColorFromCode(nameColor);
-        finalMessage = finalMessage.append(Component.text(" " + displayPlayer.getUsername()).color(playerNameColor));
+        finalMessage = finalMessage.append(Component.text(displayPlayer.getUsername()).color(playerNameColor));
 
         // Adicionar dois pontos e mensagem
         finalMessage = finalMessage.append(Component.text(": ").color(TextColor.color(85, 85, 85)))
