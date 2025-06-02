@@ -1,0 +1,51 @@
+package com.gilbertomorales.howlyvelocity.comandos;
+
+import com.velocitypowered.api.command.SimpleCommand;
+import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.proxy.ProxyServer;
+import net.kyori.adventure.text.Component;
+
+import java.util.List;
+
+public class AnuncioCommand implements SimpleCommand {
+
+    private final ProxyServer server;
+
+    public AnuncioCommand(ProxyServer server) {
+        this.server = server;
+    }
+
+    @Override
+    public void execute(Invocation invocation) {
+        if (!(invocation.source() instanceof Player sender)) {
+            invocation.source().sendMessage(Component.text("§cApenas jogadores podem usar este comando."));
+            return;
+        }
+
+        if (!sender.hasPermission("howly.moderador")) {
+            sender.sendMessage(Component.text("§cVocê precisa ser do grupo §2Moderador §cou superior para usar este comando."));
+            return;
+        }
+
+        String[] args = invocation.arguments();
+        if (args.length == 0) {
+            sender.sendMessage(Component.text("§cUso: /anuncio <mensagem>"));
+            return;
+        }
+
+        String message = String.join(" ", args);
+        String formattedMessage = Cores.colorir("&8[&6ANÚNCIO&8] &f" + message);
+
+        // Enviar para todos os jogadores online
+        server.getAllPlayers().forEach(player -> 
+            player.sendMessage(Component.text(formattedMessage))
+        );
+
+        sender.sendMessage(Component.text("§aAnúncio enviado para todos os jogadores online!"));
+    }
+
+    @Override
+    public List<String> suggest(Invocation invocation) {
+        return List.of();
+    }
+}
