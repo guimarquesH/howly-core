@@ -7,6 +7,7 @@ import com.velocitypowered.api.proxy.Player;
 
 import java.io.*;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
 
@@ -16,10 +17,10 @@ public class MedalManager {
     private final File medalsFile;
     private final File playerMedalsFile;
     private final Gson gson;
-    
+
     // Lista de medalhas disponíveis com suas permissões
     private final Map<String, MedalInfo> availableMedals = new LinkedHashMap<>();
-    
+
     // Medalhas selecionadas pelos jogadores
     private final Map<UUID, String> playerMedals = new HashMap<>();
 
@@ -27,25 +28,31 @@ public class MedalManager {
         this.dataDirectory = dataDirectory;
         this.medalsFile = new File(dataDirectory.toFile(), "medals.json");
         this.playerMedalsFile = new File(dataDirectory.toFile(), "player_medals.json");
-        this.gson = new GsonBuilder().setPrettyPrinting().create();
-        
+        this.gson = new GsonBuilder()
+                .setPrettyPrinting()
+                .disableHtmlEscaping()
+                .create();
+
         // Inicializar medalhas padrão
         initDefaultMedals();
     }
-    
+
     private void initDefaultMedals() {
         availableMedals.put("nenhuma", new MedalInfo("", "", ""));
-        availableMedals.put("estrela", new MedalInfo("✧", "howly.medal.estrela", "§e"));
+        availableMedals.put("estrela", new MedalInfo("★", "howly.medal.estrela", "§e"));
         availableMedals.put("coracao", new MedalInfo("♥", "howly.medal.coracao", "§c"));
         availableMedals.put("coroa", new MedalInfo("♔", "howly.medal.coroa", "§6"));
+        availableMedals.put("diamante", new MedalInfo("♦", "howly.medal.diamante", "§b"));
         availableMedals.put("cafe", new MedalInfo("☕", "howly.medal.cafe", "§6"));
         availableMedals.put("sol", new MedalInfo("☀", "howly.medal.sol", "§e"));
         availableMedals.put("lua", new MedalInfo("☽", "howly.medal.lua", "§9"));
         availableMedals.put("musica", new MedalInfo("♪", "howly.medal.musica", "§d"));
         availableMedals.put("flor", new MedalInfo("✿", "howly.medal.flor", "§a"));
         availableMedals.put("raio", new MedalInfo("⚡", "howly.medal.raio", "§e"));
-        availableMedals.put("diamante", new MedalInfo("✦", "howly.medal.diamante", "§b"));
-    }
+        availableMedals.put("fogo", new MedalInfo("♨", "howly.medal.fogo", "§c"));
+        availableMedals.put("gelo", new MedalInfo("❄", "howly.medal.gelo", "§f"));
+        availableMedals.put("trevo", new MedalInfo("♣", "howly.medal.trevo", "§a"));
+        availableMedals.put("espada", new MedalInfo("⚔", "howly.medal.espada", "§7"));}
 
     public void loadMedals() {
         try {
@@ -54,22 +61,22 @@ public class MedalManager {
                 return;
             }
 
-            try (Reader reader = new FileReader(medalsFile)) {
+            try (Reader reader = new InputStreamReader(new FileInputStream(medalsFile), StandardCharsets.UTF_8)) {
                 Type medalMapType = new TypeToken<Map<String, MedalInfo>>() {}.getType();
                 Map<String, MedalInfo> loadedMedals = gson.fromJson(reader, medalMapType);
-                
+
                 if (loadedMedals != null) {
                     availableMedals.clear();
                     availableMedals.putAll(loadedMedals);
                 }
             }
-            
+
             // Carregar medalhas dos jogadores
             if (playerMedalsFile.exists()) {
-                try (Reader reader = new FileReader(playerMedalsFile)) {
+                try (Reader reader = new InputStreamReader(new FileInputStream(playerMedalsFile), StandardCharsets.UTF_8)) {
                     Type playerMedalMapType = new TypeToken<Map<String, String>>() {}.getType();
                     Map<String, String> loadedPlayerMedals = gson.fromJson(reader, playerMedalMapType);
-                    
+
                     if (loadedPlayerMedals != null) {
                         playerMedals.clear();
                         loadedPlayerMedals.forEach((uuidStr, medal) -> {
@@ -83,7 +90,7 @@ public class MedalManager {
                     }
                 }
             }
-            
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -95,17 +102,17 @@ public class MedalManager {
                 dataDirectory.toFile().mkdirs();
             }
 
-            try (Writer writer = new FileWriter(medalsFile)) {
+            try (Writer writer = new OutputStreamWriter(new FileOutputStream(medalsFile), StandardCharsets.UTF_8)) {
                 gson.toJson(availableMedals, writer);
             }
-            
+
             // Salvar medalhas dos jogadores
-            try (Writer writer = new FileWriter(playerMedalsFile)) {
+            try (Writer writer = new OutputStreamWriter(new FileOutputStream(playerMedalsFile), StandardCharsets.UTF_8)) {
                 Map<String, String> saveMap = new HashMap<>();
                 playerMedals.forEach((uuid, medal) -> saveMap.put(uuid.toString(), medal));
                 gson.toJson(saveMap, writer);
             }
-            
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -116,7 +123,7 @@ public class MedalManager {
         String selectedMedal = playerMedals.get(player.getUniqueId());
         if (selectedMedal != null && availableMedals.containsKey(selectedMedal)) {
             MedalInfo medalInfo = availableMedals.get(selectedMedal);
-            
+
             // Verificar se o jogador tem permissão para usar esta medalha
             if (medalInfo.permission.isEmpty() || player.hasPermission(medalInfo.permission)) {
                 return medalInfo.color + medalInfo.symbol;
@@ -129,7 +136,7 @@ public class MedalManager {
 
     public String getFormattedPlayerMedal(Player player) {
         String medal = getPlayerMedal(player);
-        return medal.isEmpty() ? "" : "[" + medal + "§f] ";
+        return medal.isEmpty() ? "" : medal + " ";
     }
 
     public void setPlayerMedal(UUID uuid, String medalId) {
@@ -148,16 +155,16 @@ public class MedalManager {
 
     public List<String> getPlayerAvailableMedals(Player player) {
         List<String> availableMedals = new ArrayList<>();
-        
+
         for (Map.Entry<String, MedalInfo> entry : this.availableMedals.entrySet()) {
             String medalId = entry.getKey();
             MedalInfo medalInfo = entry.getValue();
-            
+
             if (medalInfo.permission.isEmpty() || player.hasPermission(medalInfo.permission)) {
                 availableMedals.add(medalId);
             }
         }
-        
+
         return availableMedals;
     }
 
@@ -191,7 +198,7 @@ public class MedalManager {
         public String getColor() {
             return color;
         }
-        
+
         public String getColoredSymbol() {
             return color + symbol;
         }

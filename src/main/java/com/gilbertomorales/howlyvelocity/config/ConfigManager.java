@@ -4,10 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Path;
 
 public class ConfigManager {
@@ -25,85 +22,115 @@ public class ConfigManager {
 
     public void loadConfig() {
         try {
-            // Criar diretório se não existir
             if (!dataDirectory.toFile().exists()) {
                 dataDirectory.toFile().mkdirs();
             }
 
-            // Criar arquivo de configuração padrão se não existir
             if (!configFile.exists()) {
                 createDefaultConfig();
             }
 
-            // Carregar configuração
-            try (FileReader reader = new FileReader(configFile)) {
+            try (Reader reader = new FileReader(configFile)) {
                 config = gson.fromJson(reader, JsonObject.class);
             }
 
         } catch (IOException e) {
-            throw new RuntimeException("Erro ao carregar configuração", e);
+            e.printStackTrace();
+            createDefaultConfig();
         }
     }
 
-    private void createDefaultConfig() throws IOException {
-        JsonObject defaultConfig = new JsonObject();
-        
-        // Configuração do banco de dados
+    private void createDefaultConfig() {
+        config = new JsonObject();
+
+        // Configurações do banco de dados
         JsonObject database = new JsonObject();
         database.addProperty("type", "h2");
-        database.addProperty("file", "howly");
-        
-        JsonObject mysql = new JsonObject();
-        mysql.addProperty("host", "localhost");
-        mysql.addProperty("port", 3306);
-        mysql.addProperty("database", "howly");
-        mysql.addProperty("username", "root");
-        mysql.addProperty("password", "");
-        mysql.addProperty("useSSL", false);
-        mysql.addProperty("autoReconnect", true);
-        mysql.addProperty("maxPoolSize", 10);
-        
-        database.add("mysql", mysql);
-        defaultConfig.add("database", database);
-        
+        database.addProperty("host", "localhost");
+        database.addProperty("port", 3306);
+        database.addProperty("database", "howly");
+        database.addProperty("username", "root");
+        database.addProperty("password", "");
+        config.add("database", database);
+
         // Configurações gerais
         JsonObject general = new JsonObject();
-        general.addProperty("prefix", "§8[§6Howly§8] §f");
         general.addProperty("debug", false);
-        
-        defaultConfig.add("general", general);
+        general.addProperty("language", "pt_BR");
+        config.add("general", general);
 
-        // Salvar arquivo
-        try (FileWriter writer = new FileWriter(configFile)) {
-            gson.toJson(defaultConfig, writer);
+        // Configurações de chat
+        JsonObject chat = new JsonObject();
+        chat.addProperty("enable_colors", true);
+        chat.addProperty("enable_global_chat", false);
+        config.add("chat", chat);
+
+        saveConfig();
+    }
+
+    public void saveConfig() {
+        try (Writer writer = new FileWriter(configFile)) {
+            gson.toJson(config, writer);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
+    // Métodos para acessar configurações do banco de dados
     public String getDatabaseType() {
         return config.getAsJsonObject("database").get("type").getAsString();
     }
 
-    public String getDatabaseFile() {
-        return config.getAsJsonObject("database").get("file").getAsString();
+    public String getDatabaseHost() {
+        return config.getAsJsonObject("database").get("host").getAsString();
     }
 
-    public JsonObject getMySQLConfig() {
-        return config.getAsJsonObject("database").getAsJsonObject("mysql");
+    public int getDatabasePort() {
+        return config.getAsJsonObject("database").get("port").getAsInt();
     }
 
-    public String getPrefix() {
-        return config.getAsJsonObject("general").get("prefix").getAsString();
+    public String getDatabaseName() {
+        return config.getAsJsonObject("database").get("database").getAsString();
     }
 
-    public boolean isDebug() {
+    public String getDatabaseUsername() {
+        return config.getAsJsonObject("database").get("username").getAsString();
+    }
+
+    public String getDatabasePassword() {
+        return config.getAsJsonObject("database").get("password").getAsString();
+    }
+
+    // Métodos para configurações gerais
+    public boolean isDebugEnabled() {
         return config.getAsJsonObject("general").get("debug").getAsBoolean();
     }
 
-    public JsonObject getConfig() {
-        return config;
+    public String getLanguage() {
+        return config.getAsJsonObject("general").get("language").getAsString();
     }
 
-    public Path getDataDirectory() {
-        return dataDirectory;
+    // Métodos para configurações de chat
+    public boolean isChatColorsEnabled() {
+        return config.getAsJsonObject("chat").get("enable_colors").getAsBoolean();
+    }
+
+    public boolean isGlobalChatEnabled() {
+        return config.getAsJsonObject("chat").get("enable_global_chat").getAsBoolean();
+    }
+
+    // Método para verificar se é MySQL
+    public boolean isMySQL() {
+        return "mysql".equalsIgnoreCase(getDatabaseType());
+    }
+
+    // Método para verificar se é H2
+    public boolean isH2() {
+        return "h2".equalsIgnoreCase(getDatabaseType());
+    }
+
+    // Método para verificar se é SQLite
+    public boolean isSQLite() {
+        return "sqlite".equalsIgnoreCase(getDatabaseType());
     }
 }

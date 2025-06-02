@@ -6,11 +6,9 @@ import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.StringJoiner;
 
 public class TagCommand implements SimpleCommand {
 
@@ -57,12 +55,7 @@ public class TagCommand implements SimpleCommand {
 
         // Definir a tag
         tagManager.setPlayerTag(player.getUniqueId(), tagId);
-
-        if (tagId.equals("nenhuma")) {
-            player.sendMessage(Component.text("§aTag removida com sucesso!"));
-        } else {
-            player.sendMessage(Component.text("§aTag alterada para " + tagInfo.getDisplay() + " §acom sucesso!"));
-        }
+        player.sendMessage(Component.text("§aTag alterada para " + tagInfo.getDisplay() + " §acom sucesso!"));
     }
 
     private void showAvailableTags(Player player) {
@@ -73,29 +66,15 @@ public class TagCommand implements SimpleCommand {
             return;
         }
 
-        Component message = Component.text("§fTags disponíveis: ");
+        player.sendMessage(Component.text("§eUtilize /tag <tag> para alterar sua tag."));
 
-        for (int i = 0; i < availableTags.size(); i++) {
-            String tagId = availableTags.get(i);
+        StringJoiner tagsJoiner = new StringJoiner(", ");
+        for (String tagId : availableTags) {
             TagManager.TagInfo tagInfo = tagManager.getTagInfo(tagId);
-
-            String displayText = tagId.equals("nenhuma") ? "§7[Nenhuma]" : tagInfo.getDisplay();
-            String color = tagInfo.getNameColor();
-
-            // Aqui, a sugestão de comando será clicável para o jogador
-            Component tagComponent = Component.text(color + displayText)
-                    .clickEvent(ClickEvent.runCommand("/tag " + tagId))  // Garante que o comando será executado
-                    .hoverEvent(HoverEvent.showText(Component.text("§7Clique para selecionar esta tag")));
-
-            message = message.append(tagComponent);
-
-            if (i < availableTags.size() - 1) {
-                message = message.append(Component.text("§7, "));
-            }
+            tagsJoiner.add(tagInfo.getDisplay());
         }
 
-        message = message.append(Component.text("§7."));
-        player.sendMessage(message);
+        player.sendMessage(Component.text("§fTags disponíveis: §7Nenhuma, " + tagsJoiner.toString()));
     }
 
     @Override
@@ -106,11 +85,9 @@ public class TagCommand implements SimpleCommand {
 
         if (invocation.arguments().length == 1) {
             String arg = invocation.arguments()[0].toLowerCase();
-
-            // Se a sugestão começar com o argumento atual do jogador, mostre as opções de tags.
             return tagManager.getPlayerAvailableTags(player).stream()
-                    .filter(tag -> tag.toLowerCase().startsWith(arg))  // Filtra as sugestões que começam com o argumento
-                    .collect(Collectors.toList());  // Coleta as sugestões
+                .filter(tag -> tag.toLowerCase().startsWith(arg))
+                .toList();
         }
 
         return List.of();

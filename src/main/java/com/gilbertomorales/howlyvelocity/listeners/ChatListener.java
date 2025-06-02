@@ -3,8 +3,11 @@ package com.gilbertomorales.howlyvelocity.listeners;
 import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.api.punishment.Punishment;
 import com.gilbertomorales.howlyvelocity.api.punishment.PunishmentAPI;
+import com.gilbertomorales.howlyvelocity.managers.ChatManager;
+import com.gilbertomorales.howlyvelocity.managers.IgnoreManager;
 import com.gilbertomorales.howlyvelocity.managers.MedalManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
+import com.gilbertomorales.howlyvelocity.utils.ChatUtils;
 import com.gilbertomorales.howlyvelocity.utils.TimeUtils;
 import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
@@ -14,6 +17,7 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -24,24 +28,30 @@ public class ChatListener {
     private final PunishmentAPI punishmentAPI;
     private final TagManager tagManager;
     private final MedalManager medalManager;
+    private final IgnoreManager ignoreManager;
+    private final ChatManager chatManager;
 
-    public ChatListener(ProxyServer server, HowlyAPI api, TagManager tagManager, MedalManager medalManager) {
+    public ChatListener(ProxyServer server, HowlyAPI api, TagManager tagManager,
+                        MedalManager medalManager, IgnoreManager ignoreManager, ChatManager chatManager) {
         this.server = server;
         this.punishmentAPI = api.getPunishmentAPI();
         this.tagManager = tagManager;
         this.medalManager = medalManager;
+        this.ignoreManager = ignoreManager;
+        this.chatManager = chatManager;
     }
 
     @Subscribe(order = PostOrder.FIRST)
     public void onPlayerChat(PlayerChatEvent event) {
         Player player = event.getPlayer();
-        
-        // Sempre cancelar o chat padrão para evitar mensagens duplicadas
+        String message = event.getMessage();
+
+        // Cancelar o evento padrão
         event.setResult(PlayerChatEvent.ChatResult.denied());
-        
+
         // Verificar se o jogador está mutado
         CompletableFuture<Punishment> muteFuture = punishmentAPI.getActiveMute(player.getUniqueId());
-        
+
         muteFuture.thenAccept(mute -> {
             if (mute != null) {
                 // Jogador está mutado, informar ao jogador
@@ -51,31 +61,44 @@ public class ChatListener {
                 player.sendMessage(Component.text("§cTempo restante: §f" + timeRemaining));
             } else {
                 // Jogador não está mutado, processar mensagem
-                sendServerMessage(player, event.getMessage());
+                String coloredMessage = ChatUtils.applyColors(message, player);
+                sendServerMessage(player, coloredMessage);
             }
         });
     }
 
+    /**
+     * Envia mensagem para todos os jogadores do mesmo servidor, respeitando a lista de ignorados
+     */
     private void sendServerMessage(Player sender, String message) {
         Optional<ServerConnection> serverConnection = sender.getCurrentServer();
         if (serverConnection.isEmpty()) {
             return;
         }
-        
+
         RegisteredServer currentServer = serverConnection.get().getServer();
         String formattedMessage = formatMessage(sender, message);
-        
-        // Enviar para todos os jogadores no mesmo servidor
+
+        // Usar LegacyComponentSerializer para garantir que Unicode seja processado corretamente
+        Component messageComponent = LegacyComponentSerializer.legacySection().deserialize(formattedMessage);
+
+        // Enviar para todos os jogadores no mesmo servidor, exceto os que estão ignorando o remetente
         for (Player player : currentServer.getPlayersConnected()) {
-            player.sendMessage(Component.text(formattedMessage));
+            // Verificar se o jogador não está ignorando o remetente
+            if (!ignoreManager.isIgnoring(player.getUniqueId(), sender.getUniqueId())) {
+                player.sendMessage(messageComponent);
+            }
         }
     }
 
+    /**
+     * Formata mensagem para chat do servidor
+     */
     private String formatMessage(Player sender, String message) {
         String medal = medalManager.getFormattedPlayerMedal(sender);
         String tag = tagManager.getPlayerTag(sender);
         String nameColor = tagManager.getPlayerNameColor(sender);
-        
+
         return medal + tag + " " + nameColor + sender.getUsername() + "§7: §f" + message;
     }
 }
