@@ -193,11 +193,11 @@ public class TagAdminCommand implements SimpleCommand {
     private void sendUsage(CommandSource source) {
         source.sendMessage(Component.text("§c§lUso do comando /tagadmin:"));
         source.sendMessage(Component.text(" "));
-        source.sendMessage(Component.text("§e/tagadmin add <nome> <tag> <cor> [permissão] §8- Adiciona uma nova tag"));
-        source.sendMessage(Component.text("§e/tagadmin remove <nome> §8- Remove uma tag"));
-        source.sendMessage(Component.text("§e/tagadmin list §8- Lista todas as tags"));
-        source.sendMessage(Component.text("§e/tagadmin edit <nome> <display> <cor> [permissão] §8- Edita uma tag"));
-        source.sendMessage(Component.text("§e/tagadmin reload §8- Recarrega as tags"));
+        source.sendMessage(Component.text("§e/tagadmin add <nome> <tag> <cor> [permissão] §8- §7Adiciona uma nova tag"));
+        source.sendMessage(Component.text("§e/tagadmin remove <nome> §8- §7Remove uma tag"));
+        source.sendMessage(Component.text("§e/tagadmin list §8- §7Lista todas as tags"));
+        source.sendMessage(Component.text("§e/tagadmin edit <nome> <display> <cor> [permissão] §8- §7Edita uma tag"));
+        source.sendMessage(Component.text("§e/tagadmin reload §8- §7Recarrega as tags"));
         source.sendMessage(Component.text(" "));
         source.sendMessage(Component.text("§7Exemplos:"));
         source.sendMessage(Component.text("§f/tagadmin add vip &6[VIP] &6 howly.tag.vip"));
