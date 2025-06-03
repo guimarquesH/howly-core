@@ -45,7 +45,7 @@ public class KickCommand implements SimpleCommand {
         String[] args = invocation.arguments();
         if (args.length < 2) {
             if (sender instanceof Player) {
-                sender.sendMessage(Component.text("§cUso: /kick <jogador> <motivo>"));
+                sender.sendMessage(Component.text("§cUtilize: /kick <jogador> <motivo>"));
             } else {
                 logger.info(LogColor.error("Kick", "Uso: /kick <jogador> <motivo>"));
             }
