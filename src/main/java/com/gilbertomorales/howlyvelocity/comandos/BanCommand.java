@@ -37,15 +37,18 @@ public class BanCommand implements SimpleCommand {
         CommandSource source = invocation.source();
         String[] args = invocation.arguments();
 
-        if (!source.hasPermission("howly.ban")) {
-            source.sendMessage(Component.text("§cVocê não tem permissão para usar este comando."));
+        if (!source.hasPermission("howly.gerente")) {
+            source.sendMessage(Component.text("§cVocê precisa ser do grupo §4Gerente §cou superior para usar este comando."));
             return;
         }
 
         if (args.length < 2) {
-            source.sendMessage(Component.text("§cUso: /ban <jogador> <tempo> <motivo>"));
-            source.sendMessage(Component.text("§cExemplo: /ban Player 7d Uso de hacks"));
-            source.sendMessage(Component.text("§cTempos: s (segundos), m (minutos), h (horas), d (dias), w (semanas), M (meses), permanent"));
+            source.sendMessage(Component.text(""));
+            source.sendMessage(Component.text("§eUtilize: /ban <jogador> <tempo> <motivo>"));
+            source.sendMessage(Component.text(""));
+            source.sendMessage(Component.text("§fExemplo: §7/ban Jogador 7d Motivo"));
+            source.sendMessage(Component.text("§fTempos: §7s (segundos), m (minutos), h (horas), d (dias), w (semanas), M (meses), permanent"));
+            source.sendMessage(Component.text(""));
             return;
         }
 
@@ -54,7 +57,7 @@ public class BanCommand implements SimpleCommand {
         final String reason = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
 
         if (reason.isEmpty()) {
-            source.sendMessage(Component.text("§cVocê precisa especificar um motivo para o banimento."));
+            source.sendMessage(Component.text("§cVocê precisa especificar um motivo para a punição."));
             return;
         }
 
@@ -111,17 +114,18 @@ public class BanCommand implements SimpleCommand {
     private void banPlayer(CommandSource source, UUID targetUUID, String targetName, String reason, Long duration, String punisherName) {
         CompletableFuture<Punishment> banFuture = api.getPunishmentAPI().banPlayer(targetUUID, reason, duration, punisherName);
 
-        banFuture.thenAccept(punishment -> {
-            // Notificar staff
-            String durationStr = duration == null ? "permanentemente" : "por " + TimeUtils.formatDuration(duration);
-            final String banMessage = "§c§lBAN §8» §f" + targetName + " §7foi banido " + durationStr + " por §f" + punisherName + "§7.\n§7Motivo: §f" + reason;
+            banFuture.thenAccept(punishment -> {
+                // Notificar staff
+                final String banMessage = "\n§c" + targetName + " §7foi banido por §c" + punisherName + "\n§7Motivo: §f" + reason + "\n";
+            
+                server.getAllPlayers().stream()
+                        .filter(p -> p.hasPermission("howly.ajudante"))
+                        .forEach(p -> p.sendMessage(Component.text(banMessage)));
+            });
 
-            server.getAllPlayers().stream()
-                    .filter(p -> p.hasPermission("howly.ban.notify"))
-                    .forEach(p -> p.sendMessage(Component.text(banMessage)));
 
             // Notificar quem executou o comando
-            source.sendMessage(Component.text("§aJogador banido com sucesso!"));
+            source.sendMessage(Component.text("§aJogador banido com sucesso!));
         }).exceptionally(ex -> {
             source.sendMessage(Component.text("§cErro ao banir jogador: " + ex.getMessage()));
             ex.printStackTrace();

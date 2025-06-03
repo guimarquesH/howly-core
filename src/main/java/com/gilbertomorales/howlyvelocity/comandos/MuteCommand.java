@@ -37,15 +37,18 @@ public class MuteCommand implements SimpleCommand {
         CommandSource source = invocation.source();
         String[] args = invocation.arguments();
 
-        if (!source.hasPermission("howly.mute")) {
-            source.sendMessage(Component.text("§cVocê não tem permissão para usar este comando."));
+        if (!source.hasPermission("howly.gerente")) {
+            source.sendMessage(Component.text("§cVocê precisa ser do grupo §4Gerente §cou superior para usar este comando."));
             return;
         }
 
         if (args.length < 2) {
-            source.sendMessage(Component.text("§cUso: /mute <jogador> <tempo> <motivo>"));
-            source.sendMessage(Component.text("§cExemplo: /mute Player 7d Spam no chat"));
-            source.sendMessage(Component.text("§cTempos: s (segundos), m (minutos), h (horas), d (dias), w (semanas), M (meses), permanent"));
+            source.sendMessage(Component.text(" "));
+            source.sendMessage(Component.text("§eUtilize: /mute <jogador> <tempo> <motivo>"));
+            source.sendMessage(Component.text(" "));
+            source.sendMessage(Component.text("§fExemplo: §7/mute Jogador 7d Spam no chat"));
+            source.sendMessage(Component.text("§fTempos: §7s (segundos), m (minutos), h (horas), d (dias), w (semanas), M (meses), permanent"));
+            source.sendMessage(Component.text(" "));
             return;
         }
 
@@ -114,10 +117,10 @@ public class MuteCommand implements SimpleCommand {
         muteFuture.thenAccept(punishment -> {
             // Notificar staff
             String durationStr = duration == null ? "permanentemente" : "por " + TimeUtils.formatDuration(duration);
-            final String muteMessage = "§c§lMUTE §8» §f" + targetName + " §7foi silenciado " + durationStr + " por §f" + punisherName + "§7.\n§7Motivo: §f" + reason;
-
+            final String muteMessage = "\n§c" + targetName + " §7foi silenciado por §c" + punisherName + "\n§7Motivo: §f" + reason + "\n";
+            
             server.getAllPlayers().stream()
-                    .filter(p -> p.hasPermission("howly.mute.notify"))
+                    .filter(p -> p.hasPermission("howly.gerente"))
                     .forEach(p -> p.sendMessage(Component.text(muteMessage)));
 
             // Notificar quem executou o comando

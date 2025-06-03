@@ -34,13 +34,13 @@ public class UnmuteCommand implements SimpleCommand {
         CommandSource source = invocation.source();
         String[] args = invocation.arguments();
 
-        if (!source.hasPermission("howly.unmute")) {
-            source.sendMessage(Component.text("§cVocê não tem permissão para usar este comando."));
+        if (!source.hasPermission("howly.gerente")) {
+            source.sendMessage(Component.text("§cVocê precisa ser do grupo §4Gerente §cou superior para usar este comando."));
             return;
         }
 
         if (args.length < 1) {
-            source.sendMessage(Component.text("§cUso: /unmute <jogador>"));
+            source.sendMessage(Component.text("§cUtilize: /unmute <jogador>"));
             return;
         }
 
@@ -93,7 +93,7 @@ public class UnmuteCommand implements SimpleCommand {
             unmuteFuture.thenAccept(success -> {
                 if (success) {
                     // Notificar staff
-                    String unmuteMessage = "§a§lUNMUTE §8» §f" + targetName + " §7foi desmutado por §f" + unmuterName + "§7.";
+                    String unmuteMessage = "§a" + targetName + " §7foi desmutado por §a" + unmuterName + "§7.";
 
                     server.getAllPlayers().stream()
                             .filter(p -> p.hasPermission("howly.unmute.notify"))

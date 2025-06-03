@@ -33,13 +33,13 @@ public class UnbanCommand implements SimpleCommand {
         CommandSource source = invocation.source();
         String[] args = invocation.arguments();
 
-        if (!source.hasPermission("howly.unban")) {
-            source.sendMessage(Component.text("§cVocê não tem permissão para usar este comando."));
+        if (!source.hasPermission("howly.gerente")) {
+            source.sendMessage(Component.text("§cVocê precisa ser do grupo §4Gerente §cou superior para usar este comando."));
             return;
         }
 
         if (args.length < 1) {
-            source.sendMessage(Component.text("§cUso: /unban <jogador>"));
+            source.sendMessage(Component.text("§cUtilize: /unban <jogador>"));
             return;
         }
 
@@ -83,10 +83,10 @@ public class UnbanCommand implements SimpleCommand {
             unbanFuture.thenAccept(success -> {
                 if (success) {
                     // Notificar staff
-                    String unbanMessage = "§a§lUNBAN §8» §f" + targetName + " §7foi desbanido por §f" + unbannerName + "§7.";
+                    String unbanMessage = "§a" + targetName + " §7foi desbanido por §a" + unbannerName + "§7.";
 
                     server.getAllPlayers().stream()
-                            .filter(p -> p.hasPermission("howly.unban.notify"))
+                            .filter(p -> p.hasPermission("howly.ajudante"))
                             .forEach(p -> p.sendMessage(Component.text(unbanMessage)));
 
                     // Notificar quem executou o comando

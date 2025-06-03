@@ -23,8 +23,8 @@ public class OnlineCommand implements SimpleCommand {
             return;
         }
 
-        if (!sender.hasPermission("howly.helper")) {
-            sender.sendMessage(Component.text("§cVocê precisa ser do grupo §aHelper §cou superior para usar este comando."));
+        if (!sender.hasPermission("howly.ajudante")) {
+            sender.sendMessage(Component.text("§cVocê precisa ser do grupo §eAjudante §cou superior para usar este comando."));
             return;
         }
 

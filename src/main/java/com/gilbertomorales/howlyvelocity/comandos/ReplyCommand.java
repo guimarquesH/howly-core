@@ -40,7 +40,7 @@ public class ReplyCommand implements SimpleCommand {
         }
 
         if (args.length < 1) {
-            sender.sendMessage(Component.text("Uso: /r <mensagem>").color(TextColor.color(255, 85, 85)));
+            sender.sendMessage(Component.text("Utilize: /r <mensagem>").color(TextColor.color(255, 85, 85)));
             return;
         }
 

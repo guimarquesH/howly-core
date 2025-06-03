@@ -22,14 +22,14 @@ public class AnuncioCommand implements SimpleCommand {
             return;
         }
 
-        if (!sender.hasPermission("howly.moderador")) {
-            sender.sendMessage(Component.text("§cVocê precisa ser do grupo §2Moderador §cou superior para usar este comando."));
+        if (!sender.hasPermission("howly.coordenador")) {
+            sender.sendMessage(Component.text("§cVocê precisa ser do grupo Coordenador §cou superior para usar este comando."));
             return;
         }
 
         String[] args = invocation.arguments();
         if (args.length == 0) {
-            sender.sendMessage(Component.text("§cUso: /anuncio <mensagem>"));
+            sender.sendMessage(Component.text("§cUtilize: /anuncio <mensagem>"));
             return;
         }
 
@@ -42,7 +42,7 @@ public class AnuncioCommand implements SimpleCommand {
             player.sendMessage(Component.text(" "));
         });
 
-        sender.sendMessage(Component.text("§aAnúncio enviado para todos os jogadores online!"));
+        sender.sendMessage(Component.text("§aAnúncio enviado para todos os jogadores online."));
     }
 
     @Override
