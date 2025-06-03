@@ -22,8 +22,8 @@ public class AnuncioCommand implements SimpleCommand {
             return;
         }
 
-        if (!sender.hasPermission("howly.moderador")) {
-            sender.sendMessage(Component.text("§cVocê precisa ser do grupo §2Moderador §cou superior para usar este comando."));
+        if (!sender.hasPermission("howly.coordenador")) {
+            sender.sendMessage(Component.text("§cVocê precisa ser do grupo Coordenador §cou superior para usar este comando."));
             return;
         }
 
@@ -42,7 +42,7 @@ public class AnuncioCommand implements SimpleCommand {
             player.sendMessage(Component.text(" "));
         });
 
-        sender.sendMessage(Component.text("§aAnúncio enviado para todos os jogadores online!"));
+        sender.sendMessage(Component.text("§aAnúncio enviado para todos os jogadores online."));
     }
 
     @Override
