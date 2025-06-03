@@ -86,6 +86,7 @@ public class InfoCommand implements SimpleCommand {
         sender.sendMessage(Component.text("§fUsuário: §7" + targetName));
         sender.sendMessage(Component.text("§fGrupo: §7Indefinido"));
         sender.sendMessage(Component.text("§fUUID: §7" + target.getUniqueId().toString()));
+        sender.sendMessage(Component.text("§fID: §cVINCULA AQUI MACACO"));
         sender.sendMessage(Component.text(" "));
 
         String currentTagId = tagManager.getCurrentPlayerTag(target.getUniqueId());
@@ -129,6 +130,7 @@ public class InfoCommand implements SimpleCommand {
         sender.sendMessage(Component.text("§fUsuário: §7" + targetName));
         sender.sendMessage(Component.text("§fGrupo: §7Indefinido"));
         sender.sendMessage(Component.text("§fUUID: §7" + uuid.toString()));
+        sender.sendMessage(Component.text("§fID: §cVINCULA AQUI MACACO"));
         sender.sendMessage(Component.text(" "));
 
         String currentTagId = tagManager.getCurrentPlayerTag(uuid);
