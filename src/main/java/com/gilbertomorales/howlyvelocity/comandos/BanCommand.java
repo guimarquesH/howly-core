@@ -1,120 +1,151 @@
 package com.gilbertomorales.howlyvelocity.comandos;
 
 import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
-import com.gilbertomorales.howlyvelocity.api.punishment.PunishmentAPI;
+import com.gilbertomorales.howlyvelocity.api.punishment.Punishment;
+import com.gilbertomorales.howlyvelocity.managers.PlayerDataManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
-import com.gilbertomorales.howlyvelocity.utils.LogColor;
 import com.gilbertomorales.howlyvelocity.utils.TimeUtils;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
-import org.slf4j.Logger;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class BanCommand implements SimpleCommand {
 
     private final ProxyServer server;
     private final TagManager tagManager;
-    private final PunishmentAPI punishmentAPI;
-    private final Logger logger;
+    private final PlayerDataManager playerDataManager;
+    private final HowlyAPI api;
 
     public BanCommand(ProxyServer server, TagManager tagManager) {
         this.server = server;
         this.tagManager = tagManager;
-        this.punishmentAPI = HowlyAPI.getInstance().getPunishmentAPI();
-        this.logger = com.gilbertomorales.howlyvelocity.HowlyVelocity.getInstance().getLogger();
+        this.playerDataManager = HowlyAPI.getInstance().getPlugin().getPlayerDataManager();
+        this.api = HowlyAPI.getInstance();
     }
 
     @Override
     public void execute(Invocation invocation) {
-        CommandSource sender = invocation.source();
+        CommandSource source = invocation.source();
+        String[] args = invocation.arguments();
 
-        if (sender instanceof Player player) {
-            if (!player.hasPermission("howly.moderador")) {
-                sender.sendMessage(Component.text("§cVocê precisa ser do grupo §2Moderador §cou superior para usar este comando."));
+        if (!source.hasPermission("howly.ban")) {
+            source.sendMessage(Component.text("§cVocê não tem permissão para usar este comando."));
+            return;
+        }
+
+        if (args.length < 2) {
+            source.sendMessage(Component.text("§cUso: /ban <jogador> <tempo> <motivo>"));
+            source.sendMessage(Component.text("§cExemplo: /ban Player 7d Uso de hacks"));
+            source.sendMessage(Component.text("§cTempos: s (segundos), m (minutos), h (horas), d (dias), w (semanas), M (meses), permanent"));
+            return;
+        }
+
+        final String targetName = args[0];
+        final String timeArg = args[1];
+        final String reason = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+
+        if (reason.isEmpty()) {
+            source.sendMessage(Component.text("§cVocê precisa especificar um motivo para o banimento."));
+            return;
+        }
+
+        // Obter nome do punidor
+        final String punisherName;
+        if (source instanceof Player) {
+            punisherName = ((Player) source).getUsername();
+        } else {
+            punisherName = "Console";
+        }
+
+        // Processar tempo
+        final Long duration;
+        if (!timeArg.equalsIgnoreCase("permanent") && !timeArg.equalsIgnoreCase("perm")) {
+            try {
+                duration = TimeUtils.parseDuration(timeArg);
+                if (duration == null || duration <= 0) {
+                    source.sendMessage(Component.text("§cTempo inválido. Use: s, m, h, d, w, M ou 'permanent'."));
+                    return;
+                }
+            } catch (Exception e) {
+                source.sendMessage(Component.text("§cTempo inválido. Use: s, m, h, d, w, M ou 'permanent'."));
                 return;
             }
-        }
-
-        String[] args = invocation.arguments();
-        if (args.length < 3) {
-            if (sender instanceof Player) {
-                sender.sendMessage(Component.text("§cUso: /ban <jogador> <tempo> <motivo>"));
-            } else {
-                logger.info(LogColor.error("Ban", "Uso: /ban <jogador> <tempo> <motivo>"));
-            }
-            return;
-        }
-
-        String playerName = args[0];
-        String timeStr = args[1];
-        String reason = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
-
-        Optional<Player> targetOptional = server.getPlayer(playerName);
-        UUID targetUUID;
-        
-        if (targetOptional.isPresent()) {
-            targetUUID = targetOptional.get().getUniqueId();
         } else {
-            if (sender instanceof Player) {
-                sender.sendMessage(Component.text("§cJogador não encontrado ou offline."));
-            } else {
-                logger.info(LogColor.error("Ban", "Jogador não encontrado ou offline."));
-            }
-            return;
+            duration = null;
         }
 
-        long duration = TimeUtils.parseTimeString(timeStr);
-        if (duration == 0) {
-            if (sender instanceof Player) {
-                sender.sendMessage(Component.text("§cTempo inválido! Use: 1d, 2h, 30m, etc. ou 'perm' para permanente."));
-            } else {
-                logger.info(LogColor.error("Ban", "Tempo inválido! Use: 1d, 2h, 30m, etc. ou 'perm' para permanente."));
-            }
-            return;
+        // Primeiro, tentar encontrar o jogador online
+        Optional<Player> targetOptional = server.getPlayer(targetName);
+
+        if (targetOptional.isPresent()) {
+            // Jogador está online
+            Player target = targetOptional.get();
+            banPlayer(source, target.getUniqueId(), target.getUsername(), reason, duration, punisherName);
+        } else {
+            // Jogador está offline, buscar no banco de dados
+            source.sendMessage(Component.text("§eBuscando jogador no banco de dados..."));
+
+            playerDataManager.getPlayerUUID(targetName).thenAccept(uuid -> {
+                if (uuid != null) {
+                    // Jogador encontrado no banco de dados
+                    playerDataManager.getPlayerName(uuid).thenAccept(correctName -> {
+                        banPlayer(source, uuid, correctName != null ? correctName : targetName, reason, duration, punisherName);
+                    });
+                } else {
+                    // Jogador não encontrado
+                    source.sendMessage(Component.text("§cJogador não encontrado no banco de dados."));
+                }
+            });
         }
+    }
 
-        String punisher = sender instanceof Player ? ((Player) sender).getUsername() : "Console";
-        Long durationMillis = duration == -1 ? null : duration;
+    private void banPlayer(CommandSource source, UUID targetUUID, String targetName, String reason, Long duration, String punisherName) {
+        CompletableFuture<Punishment> banFuture = api.getPunishmentAPI().banPlayer(targetUUID, reason, duration, punisherName);
 
-        punishmentAPI.banPlayer(targetUUID, reason, durationMillis, punisher).thenAccept(punishment -> {
-            String timeDisplay = duration == -1 ? "Permanente" : TimeUtils.formatDuration(duration);
-            
-            if (targetOptional.isPresent()) {
-                if (sender instanceof Player) {
-                    sender.sendMessage(Component.text("§aJogador " + tagManager.getFormattedPlayerName(targetOptional.get()) + " §abanido por §e" + timeDisplay + " §apor: §f" + reason));
-                } else {
-                    logger.info(LogColor.success("Ban", "Jogador " + targetOptional.get().getUsername() + " banido por " + timeDisplay + " por: " + reason));
-                }
-            } else {
-                if (sender instanceof Player) {
-                    sender.sendMessage(Component.text("§aJogador §f" + playerName + " §abanido por §e" + timeDisplay + " §apor: §f" + reason));
-                } else {
-                    logger.info(LogColor.success("Ban", "Jogador " + playerName + " banido por " + timeDisplay + " por: " + reason));
-                }
-            }
+        banFuture.thenAccept(punishment -> {
+            // Notificar staff
+            String durationStr = duration == null ? "permanentemente" : "por " + TimeUtils.formatDuration(duration);
+            final String banMessage = "§c§lBAN §8» §f" + targetName + " §7foi banido " + durationStr + " por §f" + punisherName + "§7.\n§7Motivo: §f" + reason;
+
+            server.getAllPlayers().stream()
+                    .filter(p -> p.hasPermission("howly.ban.notify"))
+                    .forEach(p -> p.sendMessage(Component.text(banMessage)));
+
+            // Notificar quem executou o comando
+            source.sendMessage(Component.text("§aJogador banido com sucesso!"));
+        }).exceptionally(ex -> {
+            source.sendMessage(Component.text("§cErro ao banir jogador: " + ex.getMessage()));
+            ex.printStackTrace();
+            return null;
         });
     }
 
     @Override
     public List<String> suggest(Invocation invocation) {
         String[] args = invocation.arguments();
-        
+
         if (args.length == 1) {
+            String partialName = args[0].toLowerCase();
             return server.getAllPlayers().stream()
-                .map(Player::getUsername)
-                .filter(name -> name.toLowerCase().startsWith(args[0].toLowerCase()))
-                .toList();
+                    .map(Player::getUsername)
+                    .filter(name -> name.toLowerCase().startsWith(partialName))
+                    .collect(Collectors.toList());
         } else if (args.length == 2) {
-            return List.of("1h", "2h", "1d", "3d", "7d", "30d", "perm");
+            String partialTime = args[1].toLowerCase();
+            return List.of("1h", "1d", "7d", "30d", "permanent").stream()
+                    .filter(time -> time.startsWith(partialTime))
+                    .collect(Collectors.toList());
         }
-        
+
         return List.of();
     }
 }

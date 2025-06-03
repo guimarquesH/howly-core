@@ -1,97 +1,134 @@
 package com.gilbertomorales.howlyvelocity.comandos;
 
 import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
-import com.gilbertomorales.howlyvelocity.api.punishment.PunishmentAPI;
+import com.gilbertomorales.howlyvelocity.managers.PlayerDataManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
-import com.gilbertomorales.howlyvelocity.utils.LogColor;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
-import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class UnmuteCommand implements SimpleCommand {
 
     private final ProxyServer server;
     private final TagManager tagManager;
-    private final PunishmentAPI punishmentAPI;
-    private final Logger logger;
+    private final PlayerDataManager playerDataManager;
+    private final HowlyAPI api;
 
     public UnmuteCommand(ProxyServer server, TagManager tagManager) {
         this.server = server;
         this.tagManager = tagManager;
-        this.punishmentAPI = HowlyAPI.getInstance().getPunishmentAPI();
-        this.logger = com.gilbertomorales.howlyvelocity.HowlyVelocity.getInstance().getLogger();
+        this.playerDataManager = HowlyAPI.getInstance().getPlugin().getPlayerDataManager();
+        this.api = HowlyAPI.getInstance();
     }
 
     @Override
     public void execute(Invocation invocation) {
-        CommandSource sender = invocation.source();
-
-        // Verificar permissão apenas se for jogador
-        if (sender instanceof Player player) {
-            if (!player.hasPermission("howly.moderador")) {
-                sender.sendMessage(Component.text("§cVocê precisa ser do grupo §2Moderador §cou superior para usar este comando."));
-                return;
-            }
-        }
-
+        CommandSource source = invocation.source();
         String[] args = invocation.arguments();
-        if (args.length == 0) {
-            if (sender instanceof Player) {
-                sender.sendMessage(Component.text("§cUso: /unmute <jogador>"));
-            } else {
-                logger.info(LogColor.error("Unmute", "Uso: /unmute <jogador>"));
-            }
+
+        if (!source.hasPermission("howly.unmute")) {
+            source.sendMessage(Component.text("§cVocê não tem permissão para usar este comando."));
             return;
         }
 
-        String playerName = args[0];
-        String unmuter = sender instanceof Player ? ((Player) sender).getUsername() : "Console";
+        if (args.length < 1) {
+            source.sendMessage(Component.text("§cUso: /unmute <jogador>"));
+            return;
+        }
 
-        // Tentar encontrar o jogador online primeiro
-        Optional<Player> targetOptional = server.getPlayer(playerName);
+        String targetName = args[0];
+
+        // Obter nome do unmuter
+        String unmuterName;
+        if (source instanceof Player) {
+            unmuterName = ((Player) source).getUsername();
+        } else {
+            unmuterName = "Console";
+        }
+
+        // Primeiro, tentar encontrar o jogador online
+        Optional<Player> targetOptional = server.getPlayer(targetName);
+
         if (targetOptional.isPresent()) {
-            UUID targetUUID = targetOptional.get().getUniqueId();
-            
-            punishmentAPI.unmutePlayer(targetUUID, unmuter).thenAccept(success -> {
-                if (success) {
-                    if (sender instanceof Player) {
-                        sender.sendMessage(Component.text("§aJogador " + tagManager.getFormattedPlayerName(targetOptional.get()) + " §afoi desmutado com sucesso!"));
-                    } else {
-                        logger.info(LogColor.success("Unmute", "Jogador " + targetOptional.get().getUsername() + " foi desmutado com sucesso!"));
-                    }
+            // Jogador está online
+            Player target = targetOptional.get();
+            unmutePlayer(source, target.getUniqueId(), target.getUsername(), unmuterName);
+        } else {
+            // Jogador está offline, buscar no banco de dados
+            source.sendMessage(Component.text("§eBuscando jogador no banco de dados..."));
+
+            playerDataManager.getPlayerUUID(targetName).thenAccept(uuid -> {
+                if (uuid != null) {
+                    // Jogador encontrado no banco de dados
+                    playerDataManager.getPlayerName(uuid).thenAccept(correctName -> {
+                        unmutePlayer(source, uuid, correctName != null ? correctName : targetName, unmuterName);
+                    });
                 } else {
-                    if (sender instanceof Player) {
-                        sender.sendMessage(Component.text("§cJogador não está mutado ou não foi encontrado."));
-                    } else {
-                        logger.info(LogColor.error("Unmute", "Jogador não está mutado ou não foi encontrado."));
-                    }
+                    // Jogador não encontrado
+                    source.sendMessage(Component.text("§cJogador não encontrado no banco de dados."));
                 }
             });
-        } else {
-            // TODO: Implementar busca por nome no banco de dados
-            if (sender instanceof Player) {
-                sender.sendMessage(Component.text("§cJogador não encontrado. Implemente busca por nome no banco de dados."));
-            } else {
-                logger.info(LogColor.error("Unmute", "Jogador não encontrado. Implemente busca por nome no banco de dados."));
-            }
         }
+    }
+
+    private void unmutePlayer(CommandSource source, UUID targetUUID, String targetName, String unmuterName) {
+        // Verificar se o jogador está mutado
+        api.getPunishmentAPI().isPlayerMuted(targetUUID).thenAccept(isMuted -> {
+            if (!isMuted) {
+                source.sendMessage(Component.text("§cEste jogador não está silenciado."));
+                return;
+            }
+
+            // Desmutar jogador
+            CompletableFuture<Boolean> unmuteFuture = api.getPunishmentAPI().unmutePlayer(targetUUID, unmuterName);
+
+            unmuteFuture.thenAccept(success -> {
+                if (success) {
+                    // Notificar staff
+                    String unmuteMessage = "§a§lUNMUTE §8» §f" + targetName + " §7foi desmutado por §f" + unmuterName + "§7.";
+
+                    server.getAllPlayers().stream()
+                            .filter(p -> p.hasPermission("howly.unmute.notify"))
+                            .forEach(p -> p.sendMessage(Component.text(unmuteMessage)));
+
+                    // Notificar jogador se estiver online
+                    server.getPlayer(targetUUID).ifPresent(player -> {
+                        player.sendMessage(Component.text("§aVocê foi desmutado por §f" + unmuterName + "§a."));
+                    });
+
+                    // Notificar quem executou o comando
+                    source.sendMessage(Component.text("§aJogador desmutado com sucesso!"));
+                } else {
+                    source.sendMessage(Component.text("§cNão foi possível desmutar o jogador."));
+                }
+            }).exceptionally(ex -> {
+                source.sendMessage(Component.text("§cErro ao desmutar jogador: " + ex.getMessage()));
+                ex.printStackTrace();
+                return null;
+            });
+        });
     }
 
     @Override
     public List<String> suggest(Invocation invocation) {
-        if (invocation.arguments().length == 1) {
+        String[] args = invocation.arguments();
+
+        if (args.length == 1) {
+            String partialName = args[0].toLowerCase();
             return server.getAllPlayers().stream()
-                .map(Player::getUsername)
-                .filter(name -> name.toLowerCase().startsWith(invocation.arguments()[0].toLowerCase()))
-                .toList();
+                    .map(Player::getUsername)
+                    .filter(name -> name.toLowerCase().startsWith(partialName))
+                    .collect(Collectors.toList());
         }
+
         return List.of();
     }
 }

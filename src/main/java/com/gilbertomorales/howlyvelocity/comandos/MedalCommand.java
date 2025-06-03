@@ -69,7 +69,6 @@ public class MedalCommand implements SimpleCommand {
         if (medalId.equals("nenhuma")) {
             player.sendMessage(Component.text("§aMedalha removida com sucesso!"));
         } else {
-            // Criar componente com símbolo e cor
             Component medalComponent = Component.text(medalInfo.getSymbol()).color(getTextColorFromCode(medalInfo.getColor()));
             Component message = Component.text("§aMedalha alterada para ")
                     .append(medalComponent)
@@ -87,9 +86,9 @@ public class MedalCommand implements SimpleCommand {
             return;
         }
 
-        player.sendMessage(Component.text("§e§lMedalhas Disponíveis:"));
-        player.sendMessage(Component.text("§7Use /medalha <nome> para selecionar uma medalha"));
-        player.sendMessage(Component.text("§7Use /medalha remover para remover sua medalha atual"));
+        player.sendMessage(Component.text(""));
+        player.sendMessage(Component.text("§eUse /medalha <nome> para selecionar uma medalha"));
+        player.sendMessage(Component.text("§eUse /medalha remover para remover sua medalha atual"));
         player.sendMessage(Component.text(""));
 
         // Mostrar medalha atual
@@ -98,19 +97,18 @@ public class MedalCommand implements SimpleCommand {
             MedalManager.MedalInfo currentMedalInfo = medalManager.getMedalInfo(currentMedal);
             if (currentMedalInfo != null) {
                 Component medalComponent = Component.text(currentMedalInfo.getSymbol()).color(getTextColorFromCode(currentMedalInfo.getColor()));
-                player.sendMessage(Component.text("§aMedalha atual: ").append(medalComponent));
+                player.sendMessage(Component.text("§fMedalha atual: ").append(medalComponent));
             }
         } else {
-            player.sendMessage(Component.text("§7Medalha atual: Nenhuma"));
+            player.sendMessage(Component.text("§fMedalha atual: §7Nenhuma"));
         }
-        player.sendMessage(Component.text(""));
 
         // Listar medalhas disponíveis
         StringJoiner medalsJoiner = new StringJoiner("§7, ");
         for (String medalId : availableMedals) {
             if (!medalId.equals("nenhuma")) {
                 MedalManager.MedalInfo medalInfo = medalManager.getMedalInfo(medalId);
-                String medalDisplay = medalInfo.getColor() + medalInfo.getSymbol() + " §f" + capitalizeFirst(medalId);
+                String medalDisplay = medalInfo.getColor() + medalInfo.getSymbol() + " " + capitalizeFirst(medalId);
                 medalsJoiner.add(medalDisplay);
             }
         }
@@ -161,7 +159,6 @@ public class MedalCommand implements SimpleCommand {
         if (invocation.arguments().length == 1) {
             String arg = invocation.arguments()[0].toLowerCase();
 
-            // Adicionar "remover" às sugestões
             List<String> suggestions = new java.util.ArrayList<>(medalManager.getPlayerAvailableMedals(player));
             suggestions.add("remover");
 

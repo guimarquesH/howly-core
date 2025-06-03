@@ -160,13 +160,18 @@ public class MedalManager {
     private void setPlayerMedalInDB(UUID uuid, String medalId) {
         CompletableFuture.runAsync(() -> {
             String sql;
+
             if (databaseManager.isMySQL()) {
                 sql = "INSERT INTO player_medals (player_uuid, medal_id, updated_at) " +
                         "VALUES (?, ?, ?) " +
                         "ON DUPLICATE KEY UPDATE " +
                         "medal_id = VALUES(medal_id), " +
                         "updated_at = VALUES(updated_at)";
+            } else if (databaseManager.isH2()) {
+                sql = "MERGE INTO player_medals (player_uuid, medal_id, updated_at) " +
+                        "KEY (player_uuid) VALUES (?, ?, ?)";
             } else {
+                // SQLite
                 sql = "INSERT OR REPLACE INTO player_medals (player_uuid, medal_id, updated_at) " +
                         "VALUES (?, ?, ?)";
             }
@@ -184,6 +189,7 @@ public class MedalManager {
             }
         });
     }
+
 
     public void removePlayerMedal(UUID uuid) {
         playerMedals.remove(uuid);

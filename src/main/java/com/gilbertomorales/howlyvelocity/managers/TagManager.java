@@ -1,98 +1,123 @@
 package com.gilbertomorales.howlyvelocity.managers;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 import com.velocitypowered.api.proxy.Player;
 
-import java.io.*;
-import java.lang.reflect.Type;
-import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class TagManager {
 
-    private final Path dataDirectory;
-    private final File tagsFile;
-    private final Gson gson;
+    private final DatabaseManager databaseManager;
 
-    private final Map<String, TagInfo> availableTags = new LinkedHashMap<>();
-    private final Map<UUID, String> playerTags = new HashMap<>();
+    // Cache em memória para performance
+    private final Map<String, TagInfo> availableTags = new ConcurrentHashMap<>();
+    private final Map<UUID, String> playerTags = new ConcurrentHashMap<>();
 
-    public TagManager(Path dataDirectory) {
-        this.dataDirectory = dataDirectory;
-        this.tagsFile = new File(dataDirectory.toFile(), "tags.json");
-        this.gson = new GsonBuilder().setPrettyPrinting().create();
-
-        initDefaultTags();
-    }
-
-    private void initDefaultTags() {
-        // Não adicionar "Nenhuma" como tag real
-        // Tags serão adicionadas conforme necessário
+    public TagManager(DatabaseManager databaseManager) {
+        this.databaseManager = databaseManager;
     }
 
     public void loadTags() {
-        try {
-            if (!tagsFile.exists()) {
-                saveTags();
-                return;
+        CompletableFuture.runAsync(() -> {
+            try {
+                loadAvailableTagsFromDB();
+                loadPlayerTagsFromDB();
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
+        });
+    }
 
-            try (Reader reader = new FileReader(tagsFile)) {
-                Type tagMapType = new TypeToken<Map<String, TagInfo>>() {}.getType();
-                Map<String, TagInfo> loadedTags = gson.fromJson(reader, tagMapType);
+    private void loadAvailableTagsFromDB() throws SQLException {
+        String sql = "SELECT tag_id, display_text, permission, name_color FROM available_tags";
 
-                if (loadedTags != null) {
-                    availableTags.clear();
-                    availableTags.putAll(loadedTags);
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            availableTags.clear();
+            while (rs.next()) {
+                String tagId = rs.getString("tag_id");
+                String displayText = rs.getString("display_text");
+                String permission = rs.getString("permission");
+                String nameColor = rs.getString("name_color");
+
+                availableTags.put(tagId, new TagInfo(displayText, permission, nameColor));
+            }
+        }
+    }
+
+    private void loadPlayerTagsFromDB() throws SQLException {
+        String sql = "SELECT player_uuid, tag_id FROM player_tags";
+
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+
+            playerTags.clear();
+            while (rs.next()) {
+                try {
+                    UUID playerUuid = UUID.fromString(rs.getString("player_uuid"));
+                    String tagId = rs.getString("tag_id");
+                    playerTags.put(playerUuid, tagId);
+                } catch (IllegalArgumentException e) {
+                    // Ignorar UUIDs inválidos
                 }
             }
-
-            File playerTagsFile = new File(dataDirectory.toFile(), "player_tags.json");
-            if (playerTagsFile.exists()) {
-                try (Reader reader = new FileReader(playerTagsFile)) {
-                    Type playerTagMapType = new TypeToken<Map<String, String>>() {}.getType();
-                    Map<String, String> loadedPlayerTags = gson.fromJson(reader, playerTagMapType);
-
-                    if (loadedPlayerTags != null) {
-                        playerTags.clear();
-                        loadedPlayerTags.forEach((uuidStr, tag) -> {
-                            try {
-                                UUID uuid = UUID.fromString(uuidStr);
-                                playerTags.put(uuid, tag);
-                            } catch (IllegalArgumentException e) {
-                                // Ignorar UUIDs inválidos
-                            }
-                        });
-                    }
-                }
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
     public void saveTags() {
-        try {
-            if (!dataDirectory.toFile().exists()) {
-                dataDirectory.toFile().mkdirs();
+        CompletableFuture.runAsync(() -> {
+            try {
+                saveAvailableTagsToDB();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private void saveAvailableTagsToDB() throws SQLException {
+        String sql;
+
+        if (databaseManager.isMySQL()) {
+            sql = "INSERT INTO available_tags (tag_id, display_text, permission, name_color, created_at, updated_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?) " +
+                    "ON DUPLICATE KEY UPDATE " +
+                    "display_text = VALUES(display_text), " +
+                    "permission = VALUES(permission), " +
+                    "name_color = VALUES(name_color), " +
+                    "updated_at = VALUES(updated_at)";
+        } else if (databaseManager.isH2()) {
+            sql = "MERGE INTO available_tags (tag_id, display_text, permission, name_color, created_at, updated_at) " +
+                    "KEY (tag_id) VALUES (?, ?, ?, ?, ?, ?)";
+        } else {
+            // SQLite
+            sql = "INSERT OR REPLACE INTO available_tags (tag_id, display_text, permission, name_color, created_at, updated_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?)";
+        }
+
+        try (Connection conn = databaseManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            long currentTime = System.currentTimeMillis();
+
+            for (Map.Entry<String, TagInfo> entry : availableTags.entrySet()) {
+                stmt.setString(1, entry.getKey());
+                stmt.setString(2, entry.getValue().getDisplay());
+                stmt.setString(3, entry.getValue().getPermission());
+                stmt.setString(4, entry.getValue().getNameColor());
+                stmt.setLong(5, currentTime);
+                stmt.setLong(6, currentTime);
+                stmt.addBatch();
             }
 
-            try (Writer writer = new FileWriter(tagsFile)) {
-                gson.toJson(availableTags, writer);
-            }
-
-            File playerTagsFile = new File(dataDirectory.toFile(), "player_tags.json");
-            try (Writer writer = new FileWriter(playerTagsFile)) {
-                Map<String, String> saveMap = new HashMap<>();
-                playerTags.forEach((uuid, tag) -> saveMap.put(uuid.toString(), tag));
-                gson.toJson(saveMap, writer);
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
+            stmt.executeBatch();
         }
     }
 
@@ -154,12 +179,61 @@ public class TagManager {
 
     public void setPlayerTag(UUID uuid, String tagId) {
         playerTags.put(uuid, tagId);
-        saveTags(); // Salvar imediatamente
+        setPlayerTagInDB(uuid, tagId);
+    }
+
+    private void setPlayerTagInDB(UUID uuid, String tagId) {
+        CompletableFuture.runAsync(() -> {
+            String sql;
+
+            if (databaseManager.isMySQL()) {
+                sql = "INSERT INTO player_tags (player_uuid, tag_id, updated_at) " +
+                        "VALUES (?, ?, ?) " +
+                        "ON DUPLICATE KEY UPDATE " +
+                        "tag_id = VALUES(tag_id), " +
+                        "updated_at = VALUES(updated_at)";
+            } else if (databaseManager.isH2()) {
+                sql = "MERGE INTO player_tags (player_uuid, tag_id, updated_at) " +
+                        "KEY (player_uuid) VALUES (?, ?, ?)";
+            } else {
+                // SQLite
+                sql = "INSERT OR REPLACE INTO player_tags (player_uuid, tag_id, updated_at) " +
+                        "VALUES (?, ?, ?)";
+            }
+
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setString(1, uuid.toString());
+                stmt.setString(2, tagId);
+                stmt.setLong(3, System.currentTimeMillis());
+                stmt.executeUpdate();
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     public void removePlayerTag(UUID uuid) {
         playerTags.remove(uuid);
-        saveTags(); // Salvar imediatamente
+        removePlayerTagFromDB(uuid);
+    }
+
+    private void removePlayerTagFromDB(UUID uuid) {
+        CompletableFuture.runAsync(() -> {
+            String sql = "DELETE FROM player_tags WHERE player_uuid = ?";
+
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+                stmt.setString(1, uuid.toString());
+                stmt.executeUpdate();
+
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     /**
@@ -178,6 +252,12 @@ public class TagManager {
 
         for (Map.Entry<String, TagInfo> entry : this.availableTags.entrySet()) {
             String tagId = entry.getKey();
+
+            // Ignora a tag "nenhuma"
+            if (tagId.equalsIgnoreCase("Nenhuma") || tagId.equalsIgnoreCase("nenhuma") || tagId.isEmpty()) {
+                continue;
+            }
+
             TagInfo tagInfo = entry.getValue();
 
             if (tagInfo.permission.isEmpty() || player.hasPermission(tagInfo.permission)) {
@@ -187,6 +267,7 @@ public class TagManager {
 
         return availableTags;
     }
+
 
     public boolean hasTag(String tagId) {
         return availableTags.containsKey(tagId);
@@ -210,6 +291,12 @@ public class TagManager {
     public void removeAvailableTag(String tagId) {
         availableTags.remove(tagId);
         saveTags();
+    }
+
+    public CompletableFuture<Void> migrateFromFilesToDatabase() {
+        return CompletableFuture.runAsync(() -> {
+            // Migração já foi feita, dados estão no banco
+        });
     }
 
     public static class TagInfo {

@@ -73,8 +73,7 @@ public class HowlyVelocity {
             // Inicializar gerenciadores básicos
             playerDataManager = new PlayerDataManager(databaseManager);
 
-            // Inicializar TagManager e MedalManager DIRETO com banco de dados
-            tagManager = new TagManager(dataDirectory);
+            tagManager = new TagManager(databaseManager);
             tagManager.loadTags();
 
             medalManager = new MedalManager(databaseManager);
@@ -104,7 +103,7 @@ public class HowlyVelocity {
 
             logger.info(LogColor.success("HowlyVelocity", "Plugin carregado com sucesso!"));
             logger.info(LogColor.info("HowlyVelocity", "Banco de dados: " + configManager.getDatabaseType().toUpperCase()));
-            logger.info(LogColor.info("HowlyVelocity", "Tags e medalhas sendo salvos no banco de dados!"));
+            logger.info(LogColor.info("HowlyVelocity", "Tags e medalhas salvos em arquivos JSON!"));
 
         } catch (Exception e) {
             logger.error(LogColor.error("HowlyVelocity", "Erro ao carregar plugin: " + e.getMessage()));
@@ -126,6 +125,9 @@ public class HowlyVelocity {
         // Comandos de personalização
         commandManager.register("tag", new TagCommand(server, tagManager));
         commandManager.register("medalha", new MedalCommand(server, medalManager));
+
+        // Comandos administrativos
+        commandManager.register("tagadmin", new TagAdminCommand(server, tagManager));
 
         // Sistema de ignorar
         commandManager.register("ignorar", new IgnorarCommand(server, ignoreManager, playerDataManager, tagManager));

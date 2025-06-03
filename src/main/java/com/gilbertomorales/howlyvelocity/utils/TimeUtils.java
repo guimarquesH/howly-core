@@ -1,122 +1,113 @@
 package com.gilbertomorales.howlyvelocity.utils;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class TimeUtils {
 
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
     /**
-     * Converte milissegundos para uma string legível
+     * Converte uma duração em milissegundos para uma string legível
      */
     public static String formatDuration(long millis) {
         if (millis <= 0) {
-            return "Permanente";
+            return "0 segundos";
         }
 
-        Duration duration = Duration.ofMillis(millis);
-        long days = duration.toDays();
-        long hours = duration.toHours() % 24;
-        long minutes = duration.toMinutes() % 60;
-        long seconds = duration.getSeconds() % 60;
+        long days = TimeUnit.MILLISECONDS.toDays(millis);
+        long hours = TimeUnit.MILLISECONDS.toHours(millis) % 24;
+        long minutes = TimeUnit.MILLISECONDS.toMinutes(millis) % 60;
+        long seconds = TimeUnit.MILLISECONDS.toSeconds(millis) % 60;
 
         StringBuilder sb = new StringBuilder();
-        
+
         if (days > 0) {
-            sb.append(days).append(" dia").append(days > 1 ? "s" : "");
+            sb.append(days).append(days == 1 ? " dia" : " dias");
         }
         if (hours > 0) {
             if (sb.length() > 0) sb.append(", ");
-            sb.append(hours).append(" hora").append(hours > 1 ? "s" : "");
+            sb.append(hours).append(hours == 1 ? " hora" : " horas");
         }
         if (minutes > 0) {
             if (sb.length() > 0) sb.append(", ");
-            sb.append(minutes).append(" minuto").append(minutes > 1 ? "s" : "");
+            sb.append(minutes).append(minutes == 1 ? " minuto" : " minutos");
         }
-        if (seconds > 0 && days == 0 && hours == 0) {
+        if (seconds > 0 && days == 0) { // Só mostrar segundos se não tiver dias
             if (sb.length() > 0) sb.append(", ");
-            sb.append(seconds).append(" segundo").append(seconds > 1 ? "s" : "");
+            sb.append(seconds).append(seconds == 1 ? " segundo" : " segundos");
         }
 
-        return sb.length() > 0 ? sb.toString() : "Menos de 1 segundo";
+        return sb.toString();
     }
 
     /**
-     * Converte timestamp para data formatada
+     * Converte uma string de tempo para milissegundos
+     * Formatos aceitos: 1s, 1m, 1h, 1d, 1w, 1M
      */
-    public static String formatTimestamp(long timestamp) {
-        LocalDateTime dateTime = LocalDateTime.ofInstant(
-            Instant.ofEpochMilli(timestamp), 
-            ZoneId.systemDefault()
-        );
-        return dateTime.format(FORMATTER);
-    }
-
-    /**
-     * Converte string de tempo para milissegundos
-     * Formato: 1d2h3m4s (dias, horas, minutos, segundos)
-     */
-    public static long parseTimeString(String timeString) {
+    public static Long parseDuration(String timeString) {
         if (timeString == null || timeString.isEmpty()) {
-            return 0;
+            return null;
         }
 
-        timeString = timeString.toLowerCase().trim();
-        
-        if (timeString.equals("perm") || timeString.equals("permanente")) {
-            return -1; // Permanente
-        }
+        // Padrão para capturar número + unidade
+        Pattern pattern = Pattern.compile("(\\d+)([smhdwM])");
+        Matcher matcher = pattern.matcher(timeString.toLowerCase());
 
         long totalMillis = 0;
-        StringBuilder currentNumber = new StringBuilder();
 
-        for (char c : timeString.toCharArray()) {
-            if (Character.isDigit(c)) {
-                currentNumber.append(c);
-            } else {
-                if (currentNumber.length() > 0) {
-                    long number = Long.parseLong(currentNumber.toString());
-                    
-                    switch (c) {
-                        case 's' -> totalMillis += TimeUnit.SECONDS.toMillis(number);
-                        case 'm' -> totalMillis += TimeUnit.MINUTES.toMillis(number);
-                        case 'h' -> totalMillis += TimeUnit.HOURS.toMillis(number);
-                        case 'd' -> totalMillis += TimeUnit.DAYS.toMillis(number);
-                        case 'w' -> totalMillis += TimeUnit.DAYS.toMillis(number * 7);
-                    }
-                    
-                    currentNumber.setLength(0);
+        while (matcher.find()) {
+            long value = Long.parseLong(matcher.group(1));
+            String unit = matcher.group(2);
+
+            switch (unit) {
+                case "s" -> totalMillis += TimeUnit.SECONDS.toMillis(value);
+                case "m" -> totalMillis += TimeUnit.MINUTES.toMillis(value);
+                case "h" -> totalMillis += TimeUnit.HOURS.toMillis(value);
+                case "d" -> totalMillis += TimeUnit.DAYS.toMillis(value);
+                case "w" -> totalMillis += TimeUnit.DAYS.toMillis(value * 7);
+                case "M" -> totalMillis += TimeUnit.DAYS.toMillis(value * 30); // Aproximadamente 30 dias
+                default -> {
+                    return null;
                 }
             }
         }
 
-        return totalMillis;
+        return totalMillis > 0 ? totalMillis : null;
     }
 
     /**
-     * Verifica se um timestamp já expirou
+     * Formata um timestamp para uma data legível
      */
-    public static boolean isExpired(long timestamp) {
-        if (timestamp <= 0) {
-            return false; // Permanente
-        }
-        return System.currentTimeMillis() > timestamp;
+    public static String formatDate(long timestamp) {
+        return DATE_FORMAT.format(new Date(timestamp));
     }
 
     /**
-     * Calcula o tempo restante até expirar
+     * Calcula o tempo decorrido desde um timestamp
      */
-    public static long getTimeRemaining(long expirationTime) {
-        if (expirationTime <= 0) {
-            return -1; // Permanente
+    public static String getTimeAgo(long timestamp) {
+        long diff = System.currentTimeMillis() - timestamp;
+
+        if (diff < 0) {
+            return "no futuro";
         }
-        
-        long remaining = expirationTime - System.currentTimeMillis();
-        return Math.max(0, remaining);
+
+        long days = TimeUnit.MILLISECONDS.toDays(diff);
+        long hours = TimeUnit.MILLISECONDS.toHours(diff) % 24;
+        long minutes = TimeUnit.MILLISECONDS.toMinutes(diff) % 60;
+
+        if (days > 0) {
+            return days + (days == 1 ? " dia atrás" : " dias atrás");
+        } else if (hours > 0) {
+            return hours + (hours == 1 ? " hora atrás" : " horas atrás");
+        } else if (minutes > 0) {
+            return minutes + (minutes == 1 ? " minuto atrás" : " minutos atrás");
+        } else {
+            return "agora mesmo";
+        }
     }
 }

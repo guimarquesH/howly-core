@@ -2,19 +2,22 @@ package com.gilbertomorales.howlyvelocity.listeners;
 
 import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.api.punishment.Punishment;
-import com.gilbertomorales.howlyvelocity.api.punishment.PunishmentAPI;
 import com.gilbertomorales.howlyvelocity.managers.PlayerDataManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
-import com.gilbertomorales.howlyvelocity.utils.LogColor;
 import com.gilbertomorales.howlyvelocity.utils.TimeUtils;
-import com.velocitypowered.api.event.ResultedEvent;
+import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.connection.LoginEvent;
+import com.velocitypowered.api.event.connection.PreLoginEvent;
 import com.velocitypowered.api.event.player.ServerConnectedEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.slf4j.Logger;
+
+import java.util.concurrent.TimeUnit;
 
 public class PlayerListener {
 
@@ -22,51 +25,69 @@ public class PlayerListener {
     private final Logger logger;
     private final PlayerDataManager playerDataManager;
     private final TagManager tagManager;
-    private final PunishmentAPI punishmentAPI;
+    private final HowlyAPI api;
 
     public PlayerListener(ProxyServer server, Logger logger, PlayerDataManager playerDataManager, TagManager tagManager) {
         this.server = server;
         this.logger = logger;
         this.playerDataManager = playerDataManager;
         this.tagManager = tagManager;
-        this.punishmentAPI = HowlyAPI.getInstance().getPunishmentAPI();
+        this.api = HowlyAPI.getInstance();
     }
 
-    @Subscribe
-    public void onPlayerLogin(LoginEvent event) {
+    @Subscribe(order = PostOrder.FIRST)
+    public void onPreLogin(PreLoginEvent event) {
+        // Verificar se o jogador está banido antes de permitir o login
+        String username = event.getUsername();
+
+        // Não podemos verificar banimento aqui porque ainda não temos o UUID
+        // A verificação será feita no LoginEvent
+    }
+
+    @Subscribe(order = PostOrder.FIRST)
+    public void onLogin(LoginEvent event) {
         Player player = event.getPlayer();
-        
-        // Verificar se o jogador está banido de forma síncrona
-        punishmentAPI.getActiveBan(player.getUniqueId()).thenAccept(ban -> {
-            if (ban != null) {
-                String message = "§c§lVOCÊ ESTÁ BANIDO!\n\n" +
-                               "§fMotivo: §c" + ban.getReason() + "\n" +
-                               "§fPunidor: §e" + ban.getPunisher() + "\n" +
-                               "§fDuração: §a" + (ban.isPermanent() ? "Permanente" : TimeUtils.formatDuration(ban.getRemainingTime())) + "\n\n" +
-                               "§7Apele em: §bdiscord.gg/howly";
-                
-                // Desconectar o jogador imediatamente
-                player.disconnect(Component.text(message));
-                logger.info(LogColor.warning("Login", "Jogador " + player.getUsername() + " tentou conectar, mas está banido: " + ban.getReason()));
-                return;
+
+        // Verificar se o jogador está banido
+        api.getPunishmentAPI().getActiveBan(player.getUniqueId()).thenAccept(punishment -> {
+            if (punishment != null) {
+                String timeRemaining = punishment.isPermanent() ? "Permanente" : TimeUtils.formatDuration(punishment.getRemainingTime());
+                String kickMessage = "§c§lHOWLY" + "\n" + "§cVocê está suspenso do servidor." + "\n\n" +
+                        "§fMotivo: §7" + punishment.getReason() + "\n" +
+                        "§fAutor: §7" + punishment.getPunisher() + "\n" +
+                        "§fTempo restante: §7" + timeRemaining + "\n\n" +
+                        "§eUse o ID #" + punishment.getId() + " para criar uma revisão em §ndiscord.gg/howly§e.";
+
+                player.disconnect(LegacyComponentSerializer.legacySection().deserialize(kickMessage));
             }
-            
-            // Salvar dados do jogador se não estiver banido
-            playerDataManager.savePlayerData(player.getUniqueId(), player.getUsername());
-            logger.info(LogColor.GREEN + "[Login] " + LogColor.WHITE + player.getUsername() + " " + LogColor.BRIGHT_BLACK + "(" + player.getUniqueId() + ") conectou-se à rede" + LogColor.RESET);
-        }).exceptionally(throwable -> {
-            // Em caso de erro na verificação, permitir o login mas logar o erro
-            logger.error(LogColor.error("Login", "Erro ao verificar banimento de " + player.getUsername() + ": " + throwable.getMessage()));
-            playerDataManager.savePlayerData(player.getUniqueId(), player.getUsername());
-            return null;
         });
+
+        // Salvar dados do jogador no banco de dados
+        playerDataManager.updatePlayerData(player.getUniqueId(), player.getUsername());
     }
 
     @Subscribe
     public void onServerConnected(ServerConnectedEvent event) {
         Player player = event.getPlayer();
-        String serverName = event.getServer().getServerInfo().getName();
-        
-        logger.info(LogColor.YELLOW + "[Servidor] " + LogColor.WHITE + player.getUsername() + " " + LogColor.BRIGHT_BLACK + "conectou-se ao servidor " + LogColor.GREEN + serverName + LogColor.RESET);
+
+        // Verificar se o jogador está mutado e notificar
+        server.getScheduler().buildTask(HowlyAPI.getInstance().getPlugin(), () -> {
+            api.getPunishmentAPI().getActiveMute(player.getUniqueId()).thenAccept(punishment -> {
+                if (punishment != null) {
+                    String timeRemaining = punishment.isPermanent() ? "Permanente" : TimeUtils.formatDuration(punishment.getRemainingTime());
+                    String message = "\n§cVocê está silenciado.\n\n" +
+                            "§fMotivo: §7" + punishment.getReason() + "\n" +
+                            "§fAutor: §7" + punishment.getPunisher() + "\n" +
+                            "§fTempo restante: §7" + timeRemaining + "\n\n§eVocê pode apelar no nosso discord §ndiscord.gg/howly§e.\n";
+
+                    player.sendMessage(Component.text(message));
+                }
+            });
+        }).delay(1, TimeUnit.SECONDS).schedule();
+    }
+
+    @Subscribe
+    public void onDisconnect(DisconnectEvent event) {
+        // Nada a fazer por enquanto
     }
 }

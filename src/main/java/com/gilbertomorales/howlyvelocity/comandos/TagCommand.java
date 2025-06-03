@@ -75,29 +75,31 @@ public class TagCommand implements SimpleCommand {
             return;
         }
 
-        player.sendMessage(Component.text("§e§lTags Disponíveis:"));
-        player.sendMessage(Component.text("§7Use /tag <nome> para selecionar uma tag"));
-        player.sendMessage(Component.text("§7Use /tag remover para remover sua tag atual"));
+        player.sendMessage(Component.text(""));
+        player.sendMessage(Component.text("§eUse /tag <nome> para selecionar uma tag"));
+        player.sendMessage(Component.text("§eUse /tag remover para remover sua tag atual"));
         player.sendMessage(Component.text(""));
 
         // Mostrar tag atual
         String currentTag = tagManager.getCurrentPlayerTag(player.getUniqueId());
         if (currentTag != null) {
             TagManager.TagInfo currentTagInfo = tagManager.getTagInfo(currentTag);
-            player.sendMessage(Component.text("§aTag atual: " + currentTagInfo.getDisplay()));
+            player.sendMessage(Component.text("§fTag atual: " + currentTagInfo.getDisplay()));
         } else {
-            player.sendMessage(Component.text("§7Tag atual: Nenhuma"));
+            player.sendMessage(Component.text("§fTag atual: §7Nenhuma"));
         }
-        player.sendMessage(Component.text(""));
-
-        // Listar tags disponíveis
         StringJoiner tagsJoiner = new StringJoiner("§7, §f");
+
         for (String tagId : availableTags) {
             TagManager.TagInfo tagInfo = tagManager.getTagInfo(tagId);
-            tagsJoiner.add(tagInfo.getDisplay());
+
+            String cleanedDisplay = tagInfo.getDisplay().replace("[", "").replace("]", "");
+
+            tagsJoiner.add(cleanedDisplay);
         }
 
         player.sendMessage(Component.text("§fTags disponíveis: §f" + tagsJoiner.toString()));
+
     }
 
     @Override

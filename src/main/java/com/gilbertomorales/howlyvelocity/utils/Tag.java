@@ -10,8 +10,7 @@ public class Tag {
         if (text == null) {
             return Component.empty();
         }
-        
-        // Substituir códigos de cor legados por Adventure
+
         text = text.replace("§0", "<black>")
                   .replace("§1", "<dark_blue>")
                   .replace("§2", "<dark_green>")
