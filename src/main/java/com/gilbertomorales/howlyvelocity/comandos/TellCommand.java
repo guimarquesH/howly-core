@@ -36,7 +36,7 @@ public class TellCommand implements SimpleCommand {
         }
 
         if (args.length < 2) {
-            sender.sendMessage(Component.text("Uso: /tell <jogador> <mensagem>").color(TextColor.color(255, 85, 85)));
+            sender.sendMessage(Component.text("§cUtilize: /tell <jogador> <mensagem>").color(TextColor.color(255, 85, 85)));
             return;
         }
 
