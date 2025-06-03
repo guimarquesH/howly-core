@@ -29,7 +29,7 @@ public class AnuncioCommand implements SimpleCommand {
 
         String[] args = invocation.arguments();
         if (args.length == 0) {
-            sender.sendMessage(Component.text("§cUso: /anuncio <mensagem>"));
+            sender.sendMessage(Component.text("§cUtilize: /anuncio <mensagem>"));
             return;
         }
 
