@@ -59,7 +59,7 @@ public class IgnorarCommand implements SimpleCommand {
 
     private void handleAdd(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(Component.text("§cUso: /ignorar add <jogador>"));
+            player.sendMessage(Component.text("§cUtilize: /ignorar add <jogador>"));
             return;
         }
 
@@ -109,7 +109,7 @@ public class IgnorarCommand implements SimpleCommand {
 
     private void handleRemove(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(Component.text("§cUso: /ignorar remover <jogador>"));
+            player.sendMessage(Component.text("§cUtilize: /ignorar remover <jogador>"));
             return;
         }
 
@@ -163,11 +163,11 @@ public class IgnorarCommand implements SimpleCommand {
             if (ignoredPlayer.isPresent()) {
                 String formattedName = tagManager.getPlayerTag(ignoredPlayer.get()) + " " +
                         tagManager.getPlayerNameColor(ignoredPlayer.get()) + ignoredPlayer.get().getUsername();
-                player.sendMessage(Component.text("§7- " + formattedName + " §7(Online)"));
+                player.sendMessage(Component.text("§7- " + formattedName + " §a(Online)"));
             } else {
                 playerDataManager.getPlayerName(ignoredUuid).thenAccept(name -> {
                     if (name != null) {
-                        player.sendMessage(Component.text("§7- §f" + name + " §7(Offline)"));
+                        player.sendMessage(Component.text("§7- §f" + name + " §c(Offline)"));
                     }
                 });
             }
@@ -187,10 +187,10 @@ public class IgnorarCommand implements SimpleCommand {
     }
 
     private void sendUsage(Player player) {
-        player.sendMessage(Component.text("§e/ignorar add <jogador> §7- Adiciona um jogador à lista de ignorados"));
-        player.sendMessage(Component.text("§e/ignorar remover <jogador> §7- Remove um jogador da lista de ignorados"));
-        player.sendMessage(Component.text("§e/ignorar lista §7- Mostra todos os jogadores ignorados"));
-        player.sendMessage(Component.text("§e/ignorar limpar §7- Limpa toda a lista de ignorados"));
+    player.sendMessage(Component.text("§e/ignorar add <jogador> §8- §7Ignora as mensagens de um jogador"));
+    player.sendMessage(Component.text("§e/ignorar remover <jogador> §8- §7Deixa de ignorar um jogador"));
+    player.sendMessage(Component.text("§e/ignorar lista §8- §7Exibe a lista de jogadores ignorados"));
+    player.sendMessage(Component.text("§e/ignorar limpar §8- §7Remove todos os jogadores da lista de ignorados"));
     }
 
     @Override
