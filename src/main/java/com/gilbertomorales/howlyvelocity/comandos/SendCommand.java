@@ -26,15 +26,15 @@ public class SendCommand implements SimpleCommand {
         CommandSource sender = invocation.source();
 
         if (sender instanceof Player player) {
-            if (!player.hasPermission("howly.moderador")) {
-                sender.sendMessage(Component.text("§cVocê precisa ser do grupo §2Moderador §cou superior para usar este comando."));
+            if (!player.hasPermission("howly.coordenador")) {
+                sender.sendMessage(Component.text("§cVocê precisa ser do grupo §cCoordenador §cou superior para usar este comando."));
                 return;
             }
         }
 
         String[] args = invocation.arguments();
         if (args.length < 2) {
-            sender.sendMessage(Component.text("§cUso: /send <jogador> <servidor>"));
+            sender.sendMessage(Component.text("§cUtilize: /send <jogador> <servidor>"));
             return;
         }
 
