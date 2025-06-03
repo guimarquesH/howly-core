@@ -18,6 +18,7 @@ import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -56,9 +57,10 @@ public class ChatListener {
             if (mute != null) {
                 // Jogador está mutado, informar ao jogador
                 String timeRemaining = mute.isPermanent() ? "Permanente" : TimeUtils.formatDuration(mute.getRemainingTime());
-                player.sendMessage(Component.text("Você está silenciado e não pode falar no chat.").color(TextColor.color(255, 85, 85)));
-                player.sendMessage(Component.text("Motivo: ").color(TextColor.color(255, 85, 85)).append(Component.text(mute.getReason()).color(TextColor.color(255, 255, 255))));
-                player.sendMessage(Component.text("Tempo restante: ").color(TextColor.color(255, 85, 85)).append(Component.text(timeRemaining).color(TextColor.color(255, 255, 255))));
+                player.sendMessage(LegacyComponentSerializer.legacySection().deserialize("\n§cVocê está silenciado.\n"));
+                player.sendMessage(LegacyComponentSerializer.legacySection().deserialize("§fMotivo: §7" + mute.getReason()));
+                player.sendMessage(LegacyComponentSerializer.legacySection().deserialize("§fTempo restante: §7" + timeRemaining));
+                player.sendMessage(LegacyComponentSerializer.legacySection().deserialize("\n§eVocê pode apelar no nosso discord §ndiscord.gg/howly§e.\n"));
             } else {
                 // Jogador não está mutado, processar mensagem
                 String coloredMessage = ChatUtils.applyColors(message, player);
@@ -94,29 +96,43 @@ public class ChatListener {
     private Component formatMessage(Player sender, String message) {
         Component finalMessage = Component.empty();
 
-        // Adicionar medalha se existir
-        String medalString = medalManager.getFormattedPlayerMedal(sender);
-        if (!medalString.isEmpty()) {
-            finalMessage = finalMessage.append(Component.text(medalString));
+        // Medalha
+        String medalSymbol = medalManager.getFormattedPlayerMedal(sender).trim();
+        if (!medalSymbol.isEmpty()) {
+            Component medalComponent = Component.text(medalSymbol)
+                    .hoverEvent(Component.text("§fMedalha: " + medalSymbol + "\n§aAdquira em: howlymc.com"));
+            finalMessage = finalMessage.append(medalComponent).append(Component.text(" "));
         }
 
-        // Adicionar tag se existir
-        String tagString = tagManager.getFormattedPlayerTag(sender);
-        if (!tagString.isEmpty()) {
-            finalMessage = finalMessage.append(Component.text(tagString));
+        // Tag
+        String tagFormatted = tagManager.getFormattedPlayerTag(sender).trim();
+        if (!tagFormatted.isEmpty()) {
+            Component tagComponent = Component.text(tagFormatted)
+                    .hoverEvent(Component.text("§fTag: " + tagFormatted + "\n§aAdquira em: howlymc.com"));
+            finalMessage = finalMessage.append(tagComponent).append(Component.text(" "));
         }
 
-        // Adicionar nome do jogador
+        // Nome do jogador
         String nameColor = tagManager.getPlayerNameColor(sender);
         TextColor playerNameColor = getTextColorFromCode(nameColor);
         finalMessage = finalMessage.append(Component.text(sender.getUsername()).color(playerNameColor));
 
-        // Adicionar dois pontos e mensagem
-        finalMessage = finalMessage.append(Component.text(": ").color(TextColor.color(170, 170, 170)))
-                .append(Component.text(message).color(TextColor.color(255, 255, 255)));
+        // Adicionar mensagem com tooltip de data
+        long timestamp = System.currentTimeMillis();
+        String dateFormatted = TimeUtils.formatDate(timestamp).replace(" ", " às ");
+
+        Component messageComponent = Component.text(": ", TextColor.color(170, 170, 170))
+                .append(Component.text(message).color(TextColor.color(255, 255, 255)))
+                .hoverEvent(Component.text("§7Enviada em §f" + dateFormatted + "§7."));
+
+        finalMessage = finalMessage.append(messageComponent);
 
         return finalMessage;
     }
+
+
+
+
 
     private TextColor getTextColorFromCode(String colorCode) {
         if (colorCode == null || colorCode.isEmpty()) {

@@ -6,6 +6,7 @@ import com.gilbertomorales.howlyvelocity.utils.TimeUtils;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -40,14 +41,18 @@ public class PunishmentManager implements PunishmentAPI {
                 // Kickar jogador se estiver online
                 Optional<Player> player = server.getPlayer(playerUUID);
                 if (player.isPresent()) {
-                    String message = "§c§lVOCÊ FOI BANIDO!\n\n" +
-                                   "§fMotivo: §c" + reason + "\n" +
-                                   "§fPunidor: §e" + punisher + "\n" +
-                                   "§fDuração: §a" + (duration == null ? "Permanente" : TimeUtils.formatDuration(duration)) + "\n\n" +
-                                   "§7Apele em: §bdiscord.gg/howly";
-                    
-                    player.get().disconnect(Component.text(message));
+                    String timeText = (duration == null) ? "Permanente" : TimeUtils.formatDuration(duration);
+
+                    String message = "§c§lHOWLY" + "\n" +
+                            "§cVocê está suspenso do servidor." + "\n\n" +
+                            "§fMotivo: §7" + reason + "\n" +
+                            "§fAutor: §7" + punisher + "\n" +
+                            "§fTempo restante: §7" + timeText + "\n\n" +
+                            "§eUse o ID #" + punishment.getId() + " para criar uma revisão em §ndiscord.gg/howly§e.";
+
+                    player.get().disconnect(LegacyComponentSerializer.legacySection().deserialize(message));
                 }
+
                 
                 // Disparar evento
                 server.getEventManager().fireAndForget(new PunishmentEvent(punishment));
@@ -64,18 +69,18 @@ public class PunishmentManager implements PunishmentAPI {
     public CompletableFuture<Punishment> kickPlayer(UUID playerUUID, String reason, String punisher) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // Criar kick
+
                 Punishment punishment = createPunishment(playerUUID, PunishmentType.KICK, reason, null, punisher);
-                
-                // Kickar jogador se estiver online
+
                 Optional<Player> player = server.getPlayer(playerUUID);
                 if (player.isPresent()) {
-                    String message = "§c§lVOCÊ FOI EXPULSO!\n\n" +
-                                   "§fMotivo: §c" + reason + "\n" +
-                                   "§fPunidor: §e" + punisher + "\n\n" +
-                                   "§7Você pode reconectar imediatamente.";
-                    
-                    player.get().disconnect(Component.text(message));
+                    String message = "§c§lHOWLY" + "\n" +
+                            "§cVocê foi expulso do servidor." + "\n\n" +
+                            "§fMotivo: §7" + reason + "\n" +
+                            "§fAutor: §7" + punisher + "\n\n" +
+                            "§ediscord.gg/howly";
+
+                    player.get().disconnect(LegacyComponentSerializer.legacySection().deserialize(message));
                 }
                 
                 // Disparar evento
@@ -102,11 +107,13 @@ public class PunishmentManager implements PunishmentAPI {
                 // Notificar jogador se estiver online
                 Optional<Player> player = server.getPlayer(playerUUID);
                 if (player.isPresent()) {
-                    String message = "§c§lVOCÊ FOI SILENCIADO!\n\n" +
-                                   "§fMotivo: §c" + reason + "\n" +
-                                   "§fPunidor: §e" + punisher + "\n" +
-                                   "§fDuração: §a" + (duration == null ? "Permanente" : TimeUtils.formatDuration(duration));
-                    
+                    String timeRemaining = duration == null ? "Permanente" : TimeUtils.formatDuration(duration);
+                    String message = "\n§cVocê foi silenciado.\n\n" +
+                            "§fMotivo: §7" + reason + "\n" +
+                            "§fAutor: §7" + punisher + "\n" +
+                            "§fTempo restante: §7" + timeRemaining + "\n\n" +
+                            "§eVocê pode apelar no nosso discord §ndiscord.gg/howly§e.\n";
+
                     player.get().sendMessage(Component.text(message));
                 }
                 

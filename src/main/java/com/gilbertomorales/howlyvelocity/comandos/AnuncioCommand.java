@@ -42,7 +42,7 @@ public class AnuncioCommand implements SimpleCommand {
             player.sendMessage(Component.text(" "));
         });
 
-        sender.sendMessage(Component.text("§aAnúncio enviado para todos os jogadores online."));
+        sender.sendMessage(Component.text("§aAnúncio enviado para todos os jogadores da rede."));
     }
 
     @Override

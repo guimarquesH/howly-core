@@ -54,7 +54,6 @@ public class InfoCommand implements SimpleCommand {
         Optional<Player> targetOptional = server.getPlayer(targetName);
 
         if (targetOptional.isPresent()) {
-            // Jogador está online
             Player target = targetOptional.get();
             showPlayerInfo(sender, target, target.getUsername());
         } else {
@@ -86,7 +85,6 @@ public class InfoCommand implements SimpleCommand {
         sender.sendMessage(Component.text("§fUsuário: §7" + targetName));
         sender.sendMessage(Component.text("§fGrupo: §7Indefinido"));
         sender.sendMessage(Component.text("§fUUID: §7" + target.getUniqueId().toString()));
-        sender.sendMessage(Component.text("§fID: §cVINCULA AQUI MACACO"));
         sender.sendMessage(Component.text(" "));
 
         String currentTagId = tagManager.getCurrentPlayerTag(target.getUniqueId());
@@ -110,8 +108,8 @@ public class InfoCommand implements SimpleCommand {
                 long firstJoin = loginInfo[0];
                 long lastJoin = loginInfo[1];
 
-                sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin) + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
-                sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin) + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
+                sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
+                sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
             } else {
                 sender.sendMessage(Component.text("§fPrimeiro login: §7Desconhecido"));
                 sender.sendMessage(Component.text("§fÚltimo login: §7Agora"));
@@ -130,7 +128,6 @@ public class InfoCommand implements SimpleCommand {
         sender.sendMessage(Component.text("§fUsuário: §7" + targetName));
         sender.sendMessage(Component.text("§fGrupo: §7Indefinido"));
         sender.sendMessage(Component.text("§fUUID: §7" + uuid.toString()));
-        sender.sendMessage(Component.text("§fID: §cVINCULA AQUI MACACO"));
         sender.sendMessage(Component.text(" "));
 
         String currentTagId = tagManager.getCurrentPlayerTag(uuid);
@@ -154,8 +151,8 @@ public class InfoCommand implements SimpleCommand {
                 long firstJoin = loginInfo[0];
                 long lastJoin = loginInfo[1];
 
-                sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin) + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
-                sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin) + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
+                sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
+                sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
             } else {
                 sender.sendMessage(Component.text("§fPrimeiro login: §7Desconhecido"));
                 sender.sendMessage(Component.text("§fÚltimo login: §7Desconhecido"));
@@ -171,18 +168,24 @@ public class InfoCommand implements SimpleCommand {
         punishmentAPI.getActiveBan(uuid).thenAccept(ban -> {
             punishmentAPI.getActiveMute(uuid).thenAccept(mute -> {
                 if (ban != null || mute != null) {
-                    sender.sendMessage(Component.text("§cPunições ativas:"));
+                    sender.sendMessage(Component.text("§cPunições ativas:\n"));
 
                     if (ban != null) {
                         String timeRemaining = ban.isPermanent() ? "Permanente" : TimeUtils.formatDuration(ban.getRemainingTime());
-                        sender.sendMessage(Component.text("§fBanimento: §c" + ban.getReason()));
+                        sender.sendMessage(Component.text("§fTipo: §cBAN"));
+                        sender.sendMessage(Component.text("§fMotivo: §7" + ban.getReason()));
                         sender.sendMessage(Component.text("§fTempo restante: §7" + timeRemaining));
                         sender.sendMessage(Component.text("§fAutor: §7" + ban.getPunisher()));
                     }
 
+                    if (ban != null && mute != null) {
+                        sender.sendMessage(Component.text(" "));
+                    }
+
                     if (mute != null) {
                         String timeRemaining = mute.isPermanent() ? "Permanente" : TimeUtils.formatDuration(mute.getRemainingTime());
-                        sender.sendMessage(Component.text("§fMute: §c" + mute.getReason()));
+                        sender.sendMessage(Component.text("§fTipo: §cMUTE"));
+                        sender.sendMessage(Component.text("§fMotivo: §7" + mute.getReason()));
                         sender.sendMessage(Component.text("§fTempo restante: §7" + timeRemaining));
                         sender.sendMessage(Component.text("§fAutor: §7" + mute.getPunisher()));
                     }
@@ -191,6 +194,7 @@ public class InfoCommand implements SimpleCommand {
             });
         });
     }
+
 
     @Override
     public List<String> suggest(Invocation invocation) {

@@ -8,6 +8,7 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.util.Optional;
 
@@ -42,9 +43,12 @@ public class ChatManager {
                 if (mute != null) {
                     // Jogador está mutado, não enviar mensagem
                     String timeRemaining = mute.isPermanent() ? "Permanente" : com.gilbertomorales.howlyvelocity.utils.TimeUtils.formatDuration(mute.getRemainingTime());
-                    sender.sendMessage(Component.text("§cVocê está silenciado e não pode falar no chat."));
-                    sender.sendMessage(Component.text("§cMotivo: §f" + mute.getReason()));
-                    sender.sendMessage(Component.text("§cTempo restante: §f" + timeRemaining));
+                    String muteMessage = "\n§cVocê está silenciado.\n\n" +
+                            "§fMotivo: §7" + mute.getReason() + "\n" +
+                            "§fTempo restante: §7" + timeRemaining + "\n\n" +
+                            "§eVocê pode apelar no nosso discord §ndiscord.gg/howly§e.\n";
+
+                    sender.sendMessage(LegacyComponentSerializer.legacySection().deserialize(muteMessage));
                     return;
                 }
 

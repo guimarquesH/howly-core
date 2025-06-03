@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection;
+
 public class KickCommand implements SimpleCommand {
 
     private final ProxyServer server;
@@ -34,10 +36,9 @@ public class KickCommand implements SimpleCommand {
     public void execute(Invocation invocation) {
         CommandSource sender = invocation.source();
 
-        // Verificar permissão apenas se for jogador
         if (sender instanceof Player player) {
             if (!player.hasPermission("howly.moderador")) {
-                sender.sendMessage(Component.text("§cVocê precisa ser do grupo §2Moderador §cou superior para usar este comando."));
+                sender.sendMessage(legacySection().deserialize("§cVocê precisa ser do grupo §2Moderador §cou superior para usar este comando."));
                 return;
             }
         }
@@ -45,9 +46,9 @@ public class KickCommand implements SimpleCommand {
         String[] args = invocation.arguments();
         if (args.length < 2) {
             if (sender instanceof Player) {
-                sender.sendMessage(Component.text("§cUtilize: /kick <jogador> <motivo>"));
+                sender.sendMessage(legacySection().deserialize("§eUtilize: /kick <usuário> <motivo>"));
             } else {
-                logger.info(LogColor.error("Kick", "Uso: /kick <jogador> <motivo>"));
+                logger.info(LogColor.error("Kick", "Uso: /kick <usuário> <motivo>"));
             }
             return;
         }
@@ -58,9 +59,9 @@ public class KickCommand implements SimpleCommand {
         Optional<Player> targetOptional = server.getPlayer(playerName);
         if (targetOptional.isEmpty()) {
             if (sender instanceof Player) {
-                sender.sendMessage(Component.text("§cJogador não encontrado ou offline."));
+                sender.sendMessage(legacySection().deserialize("§cUsuário não encontrado ou offline."));
             } else {
-                logger.info(LogColor.error("Kick", "Jogador não encontrado ou offline."));
+                logger.info(LogColor.error("Kick", "Usuário não encontrado ou offline."));
             }
             return;
         }
@@ -71,9 +72,17 @@ public class KickCommand implements SimpleCommand {
 
         punishmentAPI.kickPlayer(targetUUID, reason, punisher).thenAccept(punishment -> {
             if (sender instanceof Player) {
-                sender.sendMessage(Component.text("§aJogador " + tagManager.getFormattedPlayerName(target) + " §akickado por: §f" + reason));
+                String kickMessage = "\n§c" + target.getUsername() + " foi expulso por " + punisher + ".\n§cMotivo: " + reason + "\n";
+
+                // Envia apenas para a staff
+                server.getAllPlayers().stream()
+                        .filter(p -> p.hasPermission("howly.ajudante"))
+                        .forEach(p -> p.sendMessage(legacySection().deserialize(kickMessage)));
+
+                sender.sendMessage(legacySection().deserialize("§aUsuário expulso com sucesso!"));
+
             } else {
-                logger.info(LogColor.success("Kick", "Jogador " + target.getUsername() + " kickado por: " + reason));
+                logger.info(LogColor.success("Kick", "Usuário " + target.getUsername() + " expulso por: " + reason));
             }
         });
     }
@@ -82,9 +91,9 @@ public class KickCommand implements SimpleCommand {
     public List<String> suggest(Invocation invocation) {
         if (invocation.arguments().length == 1) {
             return server.getAllPlayers().stream()
-                .map(Player::getUsername)
-                .filter(name -> name.toLowerCase().startsWith(invocation.arguments()[0].toLowerCase()))
-                .toList();
+                    .map(Player::getUsername)
+                    .filter(name -> name.toLowerCase().startsWith(invocation.arguments()[0].toLowerCase()))
+                    .toList();
         }
         return List.of();
     }

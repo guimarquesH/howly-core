@@ -126,9 +126,6 @@ public class HowlyVelocity {
         commandManager.register("tag", new TagCommand(server, tagManager));
         commandManager.register("medalha", new MedalCommand(server, medalManager));
 
-        // Comandos administrativos
-        commandManager.register("tagadmin", new TagAdminCommand(server, tagManager));
-
         // Sistema de ignorar
         commandManager.register("ignorar", new IgnorarCommand(server, ignoreManager, playerDataManager, tagManager));
 

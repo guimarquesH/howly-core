@@ -151,7 +151,7 @@ public class IgnorarCommand implements SimpleCommand {
         Set<UUID> ignoredPlayers = ignoreManager.getIgnoredPlayers(player.getUniqueId());
 
         if (ignoredPlayers.isEmpty()) {
-            player.sendMessage(Component.text("§aVocê não está ignorando nenhum jogador."));
+            player.sendMessage(Component.text("§cVocê não está ignorando nenhum jogador."));
             return;
         }
 
@@ -187,10 +187,12 @@ public class IgnorarCommand implements SimpleCommand {
     }
 
     private void sendUsage(Player player) {
-    player.sendMessage(Component.text("§e/ignorar add <jogador> §8- §7Ignora as mensagens de um jogador"));
-    player.sendMessage(Component.text("§e/ignorar remover <jogador> §8- §7Deixa de ignorar um jogador"));
-    player.sendMessage(Component.text("§e/ignorar lista §8- §7Exibe a lista de jogadores ignorados"));
-    player.sendMessage(Component.text("§e/ignorar limpar §8- §7Remove todos os jogadores da lista de ignorados"));
+        player.sendMessage(Component.text(""));
+        player.sendMessage(Component.text("§e/ignorar add <jogador> §8- §7Ignora as mensagens de um jogador"));
+        player.sendMessage(Component.text("§e/ignorar remover <jogador> §8- §7Deixa de ignorar um jogador"));
+        player.sendMessage(Component.text("§e/ignorar lista §8- §7Exibe a lista de jogadores ignorados"));
+        player.sendMessage(Component.text("§e/ignorar limpar §8- §7Remove todos os jogadores da lista de ignorados"));
+        player.sendMessage(Component.text(""));
     }
 
     @Override

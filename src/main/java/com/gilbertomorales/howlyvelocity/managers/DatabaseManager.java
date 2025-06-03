@@ -301,86 +301,109 @@ public class DatabaseManager {
     private void insertDefaultData(Statement stmt, String databaseType) throws SQLException {
         long currentTime = System.currentTimeMillis();
 
-        // Para H2, usar MERGE (equivalente ao INSERT OR IGNORE)
+        String[][] defaultTags = {
+                {"genio", "§6[Gênio]", "howly.tag.genio", "§6"},
+                {"heroi", "§c[Herói]", "howly.tag.heroi", "§c"},
+                {"ninja", "§7[Ninja]", "howly.tag.ninja", "§7"},
+                {"imortal", "§5[Imortal]", "howly.tag.imortal", "§5"},
+                {"medroso", "§e[Medroso]", "howly.tag.medroso", "§e"},
+                {"mago", "§9[Mago]", "howly.tag.mago", "§9"},
+                {"guerreiro", "§6[Guerreiro]", "howly.tag.guerreiro", "§6"},
+                {"assassino", "§8[Assassino]", "howly.tag.assassino", "§8"},
+                {"arqueiro", "§a[Arqueiro]", "howly.tag.arqueiro", "§a"},
+                {"mercenario", "§3[Mercenário]", "howly.tag.mercenario", "§3"},
+                {"campeao", "§b[Campeão]", "howly.tag.campeao", "§b"},
+                {"sombra", "§0[Sombra]", "howly.tag.sombra", "§0"},
+                {"anjo", "§f[Anjo]", "howly.tag.anjo", "§f"},
+                {"demonio", "§4[Demônio]", "howly.tag.demonio", "§4"},
+        };
+
+        String[][] defaultMedals = {
+                {"aguakanji", "水", "howly.medalha.aguakanji", "§b"},
+                {"ancora", "⚓", "howly.medalha.ancora", "§9"},
+                {"bandeira", "⚑", "howly.medalha.bandeira", "§f"},
+                {"carinha", "ツ", "howly.medalha.carinha", "§9"},
+                {"carta", "✉", "howly.medalha.carta", "§f"},
+                {"caveira", "☠", "howly.medalha.caveira", "§8"},
+                {"cafe", "☕", "howly.medalha.cafe", "§6"},
+                {"ceukanji", "空", "howly.medalha.ceukanji", "§9"},
+                {"coracao", "♥", "howly.medalha.coracao", "§c"},
+                {"correto", "✔", "howly.medalha.correto", "§a"},
+                {"coroa", "♔", "howly.medalha.coroa", "§6"},
+                {"diamante", "♦", "howly.medalha.diamante", "§b"},
+                {"engrenagem", "⚙", "howly.medalha.engrenagem", "§7"},
+                {"espada", "⚔", "howly.medalha.espada", "§7"},
+                {"errado", "✖", "howly.medalha.errado", "§c"},
+                {"estrela", "★", "howly.medalha.estrela", "§e"},
+                {"feliz", "㋡", "howly.medalha.feliz", "§e"},
+                {"flor", "✿", "howly.medalha.flor", "§a"},
+                {"fogo", "♨", "howly.medalha.fogo", "§c"},
+                {"fogokanji", "火", "howly.medalha.fogokanji", "§c"},
+                {"gelo", "❄", "howly.medalha.gelo", "§f"},
+                {"lua", "☽", "howly.medalha.lua", "§9"},
+                {"luakanji", "月", "howly.medalha.luakanji", "§9"},
+                {"martelo", "⚒", "howly.medalha.martelo", "§7"},
+                {"musica", "♫", "howly.medalha.musica", "§d"},
+                {"raio", "⚡", "howly.medalha.raio", "§e"},
+                {"sol", "☀", "howly.medalha.sol", "§e"},
+                {"solkanji", "日", "howly.medalha.solkanji", "§e"},
+                {"toxico", "☣", "howly.medalha.toxico", "§2"},
+                {"trevo", "♣", "howly.medalha.trevo", "§a"},
+                {"yinyang", "☯", "howly.medalha.yin_yang", "§f"}
+        };
+
         if (databaseType.equals("h2")) {
-            // Tag padrão
+            // Tag e medalha padrão
             stmt.execute(String.format("""
-                MERGE INTO available_tags (tag_id, display_text, permission, name_color, created_at, updated_at) 
-                VALUES ('Nenhuma', '', '', '§7', %d, %d)
-            """, currentTime, currentTime));
+            MERGE INTO available_tags (tag_id, display_text, permission, name_color, created_at, updated_at)
+            VALUES ('Nenhuma', '', '', '§7', %d, %d)
+        """, currentTime, currentTime));
 
-            // Medalha padrão
             stmt.execute(String.format("""
-                MERGE INTO available_medals (medal_id, symbol, permission, color, created_at, updated_at) 
-                VALUES ('nenhuma', '', '', '', %d, %d)
-            """, currentTime, currentTime));
+            MERGE INTO available_medals (medal_id, symbol, permission, color, created_at, updated_at)
+            VALUES ('nenhuma', '', '', '', %d, %d)
+        """, currentTime, currentTime));
 
-            // Medalhas padrão
-            String[][] defaultMedals = {
-                    {"estrela", "★", "howly.medal.estrela", "§e"},
-                    {"coracao", "♥", "howly.medal.coracao", "§c"},
-                    {"coroa", "♔", "howly.medal.coroa", "§6"},
-                    {"diamante", "♦", "howly.medal.diamante", "§b"},
-                    {"cafe", "☕", "howly.medal.cafe", "§6"},
-                    {"sol", "☀", "howly.medal.sol", "§e"},
-                    {"lua", "☽", "howly.medal.lua", "§9"},
-                    {"musica", "♪", "howly.medal.musica", "§d"},
-                    {"flor", "✿", "howly.medal.flor", "§a"},
-                    {"raio", "⚡", "howly.medal.raio", "§e"},
-                    {"fogo", "♨", "howly.medal.fogo", "§c"},
-                    {"gelo", "❄", "howly.medal.gelo", "§f"},
-                    {"trevo", "♣", "howly.medal.trevo", "§a"},
-                    {"espada", "⚔", "howly.medal.espada", "§7"},
-                    {"escudo", "⛨", "howly.medal.escudo", "§8"}
-            };
+            for (String[] tag : defaultTags) {
+                stmt.execute(String.format("""
+                MERGE INTO available_tags (tag_id, display_text, permission, name_color, created_at, updated_at)
+                VALUES ('%s', '%s', '%s', '%s', %d, %d)
+            """, tag[0], tag[1], tag[2], tag[3], currentTime, currentTime));
+            }
 
             for (String[] medal : defaultMedals) {
                 stmt.execute(String.format("""
-                    MERGE INTO available_medals (medal_id, symbol, permission, color, created_at, updated_at) 
-                    VALUES ('%s', '%s', '%s', '%s', %d, %d)
-                """, medal[0], medal[1], medal[2], medal[3], currentTime, currentTime));
+                MERGE INTO available_medals (medal_id, symbol, permission, color, created_at, updated_at)
+                VALUES ('%s', '%s', '%s', '%s', %d, %d)
+            """, medal[0], medal[1], medal[2], medal[3], currentTime, currentTime));
             }
 
         } else {
-            // Para MySQL e SQLite
+            // MySQL e SQLite
             String insertOrIgnore = databaseType.equals("mysql") ? "INSERT IGNORE INTO" : "INSERT OR IGNORE INTO";
 
-            // Tag padrão
             stmt.execute(String.format("""
-                %s available_tags (tag_id, display_text, permission, name_color, created_at, updated_at) 
-                VALUES ('Nenhuma', '', '', '§7', %d, %d)
-            """, insertOrIgnore, currentTime, currentTime));
+            %s available_tags (tag_id, display_text, permission, name_color, created_at, updated_at)
+            VALUES ('Nenhuma', '', '', '§7', %d, %d)
+        """, insertOrIgnore, currentTime, currentTime));
 
-            // Medalha padrão
             stmt.execute(String.format("""
-                %s available_medals (medal_id, symbol, permission, color, created_at, updated_at) 
-                VALUES ('nenhuma', '', '', '', %d, %d)
-            """, insertOrIgnore, currentTime, currentTime));
+            %s available_medals (medal_id, symbol, permission, color, created_at, updated_at)
+            VALUES ('nenhuma', '', '', '', %d, %d)
+        """, insertOrIgnore, currentTime, currentTime));
 
-            // Medalhas padrão
-            String[][] defaultMedals = {
-                    {"estrela", "★", "howly.medal.estrela", "§e"},
-                    {"coracao", "♥", "howly.medal.coracao", "§c"},
-                    {"coroa", "♔", "howly.medal.coroa", "§6"},
-                    {"diamante", "♦", "howly.medal.diamante", "§b"},
-                    {"cafe", "☕", "howly.medal.cafe", "§6"},
-                    {"sol", "☀", "howly.medal.sol", "§e"},
-                    {"lua", "☽", "howly.medal.lua", "§9"},
-                    {"musica", "♪", "howly.medal.musica", "§d"},
-                    {"flor", "✿", "howly.medal.flor", "§a"},
-                    {"raio", "⚡", "howly.medal.raio", "§e"},
-                    {"fogo", "♨", "howly.medal.fogo", "§c"},
-                    {"gelo", "❄", "howly.medal.gelo", "§f"},
-                    {"trevo", "♣", "howly.medal.trevo", "§a"},
-                    {"espada", "⚔", "howly.medal.espada", "§7"},
-                    {"escudo", "⛨", "howly.medal.escudo", "§8"}
-            };
+            for (String[] tag : defaultTags) {
+                stmt.execute(String.format("""
+                %s available_tags (tag_id, display_text, permission, name_color, created_at, updated_at)
+                VALUES ('%s', '%s', '%s', '%s', %d, %d)
+            """, insertOrIgnore, tag[0], tag[1], tag[2], tag[3], currentTime, currentTime));
+            }
 
             for (String[] medal : defaultMedals) {
                 stmt.execute(String.format("""
-                    %s available_medals (medal_id, symbol, permission, color, created_at, updated_at) 
-                    VALUES ('%s', '%s', '%s', '%s', %d, %d)
-                """, insertOrIgnore, medal[0], medal[1], medal[2], medal[3], currentTime, currentTime));
+                %s available_medals (medal_id, symbol, permission, color, created_at, updated_at)
+                VALUES ('%s', '%s', '%s', '%s', %d, %d)
+            """, insertOrIgnore, medal[0], medal[1], medal[2], medal[3], currentTime, currentTime));
             }
         }
     }

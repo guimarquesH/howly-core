@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 public class VersoesCommand implements SimpleCommand {
 
     private final ProxyServer server;
-    private final String[] colors = {"§a", "§b", "§c", "§d", "§e", "§f", "§6", "§9", "§2", "§5"};
+    private final String[] colors = {"§a", "§b", "§c", "§d", "§e", "§2", "§1", "§6", "§5", "§4"};
 
     public VersoesCommand(ProxyServer server) {
         this.server = server;
@@ -50,8 +50,7 @@ public class VersoesCommand implements SimpleCommand {
         int totalPlayers = players.size();
 
         sender.sendMessage(Component.text(" "));
-        sender.sendMessage(Component.text("§eEstatísticas de versões dos jogadores:"));
-        sender.sendMessage(Component.text("§fTotal de jogadores: §a" + totalPlayers));
+        sender.sendMessage(Component.text("§eEstatísticas de uso de versão dos usuários conectados:"));
         sender.sendMessage(Component.text(" "));
 
         int colorIndex = 0;
@@ -59,26 +58,28 @@ public class VersoesCommand implements SimpleCommand {
             String version = entry.getKey();
             int count = entry.getValue();
             double percentage = (count * 100.0) / totalPlayers;
-            
-            // Calcular quantos quadradinhos colorir (de 10)
+
             int coloredSquares = (int) Math.round(percentage / 10.0);
             
             String color = colors[colorIndex % colors.length];
             StringBuilder squares = new StringBuilder();
-            
-            // Adicionar quadradinhos coloridos
+
             for (int i = 0; i < coloredSquares; i++) {
                 squares.append(color).append("■");
             }
-            
-            // Adicionar quadradinhos vazios
+
             for (int i = coloredSquares; i < 10; i++) {
                 squares.append("§8■");
             }
-            
-            sender.sendMessage(Component.text(String.format("§f%s: %s §7(§f%d §7jogadores - §f%.1f%%§7)",
-                version, squares.toString(), count, percentage)));
-            
+
+            sender.sendMessage(Component.text(String.format("§fv%s: §7%d %s %s §7%.1f%%",
+                    version,
+                    count,
+                    count == 1 ? "usuário" : "usuários",
+                    squares.toString(),
+                    percentage
+            )));
+
             colorIndex++;
         }
         

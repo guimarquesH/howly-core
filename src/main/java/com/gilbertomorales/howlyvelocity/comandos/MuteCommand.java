@@ -18,6 +18,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import static net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection;
+
 public class MuteCommand implements SimpleCommand {
 
     private final ProxyServer server;
@@ -71,7 +73,7 @@ public class MuteCommand implements SimpleCommand {
 
         // Processar tempo
         final Long duration;
-        if (!timeArg.equalsIgnoreCase("permanent") && !timeArg.equalsIgnoreCase("perm")) {
+        if (!timeArg.equalsIgnoreCase("permanent") && !timeArg.equalsIgnoreCase("perm") && !timeArg.equalsIgnoreCase("permanente")) {
             try {
                 duration = TimeUtils.parseDuration(timeArg);
                 if (duration == null || duration <= 0) {
@@ -115,22 +117,22 @@ public class MuteCommand implements SimpleCommand {
         CompletableFuture<Punishment> muteFuture = api.getPunishmentAPI().mutePlayer(targetUUID, reason, duration, punisherName);
 
         muteFuture.thenAccept(punishment -> {
-            // Notificar staff
-            String durationStr = duration == null ? "permanentemente" : "por " + TimeUtils.formatDuration(duration);
-            final String muteMessage = "\n§c" + targetName + " §7foi silenciado por §c" + punisherName + "\n§7Motivo: §f" + reason + "\n";
-            
-            server.getAllPlayers().stream()
-                    .filter(p -> p.hasPermission("howly.gerente"))
-                    .forEach(p -> p.sendMessage(Component.text(muteMessage)));
+            String durationStr = duration == null ? "Permanente" : TimeUtils.formatDuration(duration);
+            final String muteMessage = "\n§c" + targetName + " foi silenciado por " + punisherName + ".\n§cMotivo: " + reason + "\n";
 
-            // Notificar quem executou o comando
-            source.sendMessage(Component.text("§aJogador silenciado com sucesso!"));
+            server.getAllPlayers().stream()
+                    .filter(p -> p.hasPermission("howly.ajudante"))
+                    .forEach(p -> p.sendMessage(legacySection().deserialize(muteMessage)));
+
+            // Confirmar para quem executou
+            source.sendMessage(legacySection().deserialize("§aUsuário silenciado com sucesso!"));
         }).exceptionally(ex -> {
-            source.sendMessage(Component.text("§cErro ao silenciar jogador: " + ex.getMessage()));
+            source.sendMessage(legacySection().deserialize("§cErro ao silenciar usuário: " + ex.getMessage()));
             ex.printStackTrace();
             return null;
         });
     }
+
 
     @Override
     public List<String> suggest(Invocation invocation) {

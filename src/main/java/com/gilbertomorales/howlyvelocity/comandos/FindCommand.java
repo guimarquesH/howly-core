@@ -48,7 +48,7 @@ public class FindCommand implements SimpleCommand {
             .map(connection -> connection.getServerInfo().getName())
             .orElse("Lobby");
 
-        sender.sendMessage(Component.text("§aJogador " + tagManager.getFormattedPlayerName(target) + " §aestá no servidor §e" + serverName));
+        sender.sendMessage(Component.text("§eUsuário " + tagManager.getFormattedPlayerName(target) + " §eestá conectado em §n" + serverName + "§e."));
     }
 
     @Override

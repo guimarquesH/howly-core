@@ -18,6 +18,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
+import static net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer.legacySection;
+
 public class BanCommand implements SimpleCommand {
 
     private final ProxyServer server;
@@ -38,17 +40,17 @@ public class BanCommand implements SimpleCommand {
         String[] args = invocation.arguments();
 
         if (!source.hasPermission("howly.gerente")) {
-            source.sendMessage(Component.text("§cVocê precisa ser do grupo §4Gerente §cou superior para usar este comando."));
+            source.sendMessage(legacySection().deserialize("§cVocê precisa ser do grupo §4Gerente §cou superior para usar este comando."));
             return;
         }
 
         if (args.length < 2) {
-            source.sendMessage(Component.text(""));
-            source.sendMessage(Component.text("§eUtilize: /ban <jogador> <tempo> <motivo>"));
-            source.sendMessage(Component.text(""));
-            source.sendMessage(Component.text("§fExemplo: §7/ban Jogador 7d Motivo"));
-            source.sendMessage(Component.text("§fTempos: §7s (segundos), m (minutos), h (horas), d (dias), w (semanas), M (meses), permanent"));
-            source.sendMessage(Component.text(""));
+            source.sendMessage(legacySection().deserialize(""));
+            source.sendMessage(legacySection().deserialize("§eUtilize: /ban <usuário> <tempo> <motivo>"));
+            source.sendMessage(legacySection().deserialize(""));
+            source.sendMessage(legacySection().deserialize("§fExemplo: §7/ban Usuario 7d Motivo"));
+            source.sendMessage(legacySection().deserialize("§fTempos: §7s (segundos), m (minutos), h (horas), d (dias), w (semanas), M (meses), permanente"));
+            source.sendMessage(legacySection().deserialize(""));
             return;
         }
 
@@ -57,77 +59,61 @@ public class BanCommand implements SimpleCommand {
         final String reason = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
 
         if (reason.isEmpty()) {
-            source.sendMessage(Component.text("§cVocê precisa especificar um motivo para a punição."));
+            source.sendMessage(legacySection().deserialize("§cVocê precisa especificar um motivo para a punição."));
             return;
         }
 
-        // Obter nome do punidor
-        final String punisherName;
-        if (source instanceof Player) {
-            punisherName = ((Player) source).getUsername();
-        } else {
-            punisherName = "Console";
-        }
+        final String punisherName = (source instanceof Player)
+                ? ((Player) source).getUsername()
+                : "Console";
 
-        // Processar tempo
         final Long duration;
-        if (!timeArg.equalsIgnoreCase("permanent") && !timeArg.equalsIgnoreCase("perm")) {
+        if (!timeArg.equalsIgnoreCase("permanent") && !timeArg.equalsIgnoreCase("perm") && !timeArg.equalsIgnoreCase("permanente")) {
             try {
                 duration = TimeUtils.parseDuration(timeArg);
                 if (duration == null || duration <= 0) {
-                    source.sendMessage(Component.text("§cTempo inválido. Use: s, m, h, d, w, M ou 'permanent'."));
+                    source.sendMessage(legacySection().deserialize("§cTempo inválido. Use: s, m, h, d, w, M ou 'permanente'."));
                     return;
                 }
             } catch (Exception e) {
-                source.sendMessage(Component.text("§cTempo inválido. Use: s, m, h, d, w, M ou 'permanent'."));
+                source.sendMessage(legacySection().deserialize("§cTempo inválido. Use: s, m, h, d, w, M ou 'permanente'."));
                 return;
             }
         } else {
             duration = null;
         }
 
-        // Primeiro, tentar encontrar o jogador online
         Optional<Player> targetOptional = server.getPlayer(targetName);
 
         if (targetOptional.isPresent()) {
-            // Jogador está online
             Player target = targetOptional.get();
-            banPlayer(source, target.getUniqueId(), target.getUsername(), reason, duration, punisherName);
+            banUser(source, target.getUniqueId(), target.getUsername(), reason, duration, punisherName);
         } else {
-            // Jogador está offline, buscar no banco de dados
-            source.sendMessage(Component.text("§eBuscando jogador no banco de dados..."));
-
+            source.sendMessage(legacySection().deserialize("§eBuscando usuário no banco de dados..."));
             playerDataManager.getPlayerUUID(targetName).thenAccept(uuid -> {
                 if (uuid != null) {
-                    // Jogador encontrado no banco de dados
                     playerDataManager.getPlayerName(uuid).thenAccept(correctName -> {
-                        banPlayer(source, uuid, correctName != null ? correctName : targetName, reason, duration, punisherName);
+                        banUser(source, uuid, correctName != null ? correctName : targetName, reason, duration, punisherName);
                     });
                 } else {
-                    // Jogador não encontrado
-                    source.sendMessage(Component.text("§cJogador não encontrado no banco de dados."));
+                    source.sendMessage(legacySection().deserialize("§cUsuário não encontrado no banco de dados."));
                 }
             });
         }
     }
 
-    private void banPlayer(CommandSource source, UUID targetUUID, String targetName, String reason, Long duration, String punisherName) {
+    private void banUser(CommandSource source, UUID targetUUID, String targetName, String reason, Long duration, String punisherName) {
         CompletableFuture<Punishment> banFuture = api.getPunishmentAPI().banPlayer(targetUUID, reason, duration, punisherName);
 
-            banFuture.thenAccept(punishment -> {
-                // Notificar staff
-                final String banMessage = "\n§c" + targetName + " §7foi banido por §c" + punisherName + "\n§7Motivo: §f" + reason + "\n";
-            
-                server.getAllPlayers().stream()
-                        .filter(p -> p.hasPermission("howly.ajudante"))
-                        .forEach(p -> p.sendMessage(Component.text(banMessage)));
-            });
+        banFuture.thenAccept(punishment -> {
+            String banMessage = "\n§c" + targetName + " foi banido por " + punisherName + ".\n§cMotivo: " + reason + "\n";
+            server.getAllPlayers().stream()
+                    .filter(p -> p.hasPermission("howly.ajudante"))
+                    .forEach(p -> p.sendMessage(legacySection().deserialize(banMessage)));
 
-
-            // Notificar quem executou o comando
-            source.sendMessage(Component.text("§aJogador banido com sucesso!));
+            source.sendMessage(legacySection().deserialize("§aUsuário banido com sucesso!"));
         }).exceptionally(ex -> {
-            source.sendMessage(Component.text("§cErro ao banir jogador: " + ex.getMessage()));
+            source.sendMessage(legacySection().deserialize("§cErro ao aplicar punição: " + ex.getMessage()));
             ex.printStackTrace();
             return null;
         });
