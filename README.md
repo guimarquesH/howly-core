@@ -2,7 +2,7 @@
 
 Plugin core da rede Howly desenvolvido para Velocity.
 
-> 🚧 Este projeto está em constante desenvolvimento e recebe atualizações diárias conforme as demandas da equipe.
+> 🚧 Este projeto está em constante desenvolvimento e recebe atualizações diárias conforme as demandas.
 
 ---
 
