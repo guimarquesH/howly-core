@@ -27,8 +27,8 @@ public class TagAdminCommand implements SimpleCommand {
         CommandSource source = invocation.source();
         String[] args = invocation.arguments();
 
-        if (!source.hasPermission("howly.admin.tag")) {
-            source.sendMessage(Component.text("§cVocê não tem permissão para usar este comando."));
+        if (!source.hasPermission("howly.gerente")) {
+            source.sendMessage(Component.text("§cVocê precisa ser do grupo §4Gerente §cou superior para usar este comando."));
             return;
         }
 
@@ -51,9 +51,10 @@ public class TagAdminCommand implements SimpleCommand {
 
     private void handleAdd(CommandSource source, String[] args) {
         if (args.length < 4) {
-            source.sendMessage(Component.text("§cUso: /tagadmin add <id> <display> <cor> [permissão]"));
+            source.sendMessage(Component.text(" "));
+            source.sendMessage(Component.text("§cUtilize: /tagadmin add <nome> <tag> <cor> [permissão]"));
             source.sendMessage(Component.text("§cExemplo: /tagadmin add vip &6[VIP] &6 howly.tag.vip"));
-            source.sendMessage(Component.text("§cCores: &0 &1 &2 &3 &4 &5 &6 &7 &8 &9 &a &b &c &d &e &f"));
+            source.sendMessage(Component.text(" "));
             return;
         }
 
@@ -64,7 +65,7 @@ public class TagAdminCommand implements SimpleCommand {
 
         // Verificar se a tag já existe
         if (tagManager.hasTag(tagId)) {
-            source.sendMessage(Component.text("§cEsta tag já existe. Use /tagadmin edit para editá-la."));
+            source.sendMessage(Component.text("§cEsta tag já existe. Utilize §n/tagadmin edit§c para editá-la."));
             return;
         }
 
@@ -77,16 +78,19 @@ public class TagAdminCommand implements SimpleCommand {
         // Adicionar a tag
         tagManager.addAvailableTag(tagId, display, permission, nameColor);
 
+        source.sendMessage(Component.text(" "));
         source.sendMessage(Component.text("§aTag criada com sucesso!"));
-        source.sendMessage(Component.text("§fID: §7" + tagId));
-        source.sendMessage(Component.text("§fDisplay: " + display));
+        source.sendMessage(Component.text("§fNome: §7" + tagId));
+        source.sendMessage(Component.text("§fTag: " + display));
         source.sendMessage(Component.text("§fCor do nome: " + nameColor + "Exemplo"));
+        source.sendMessage(Component.text(" "));
         source.sendMessage(Component.text("§fPermissão: §7" + (permission.isEmpty() ? "Nenhuma" : permission)));
+        source.sendMessage(Component.text(" "));
     }
 
     private void handleRemove(CommandSource source, String[] args) {
         if (args.length < 2) {
-            source.sendMessage(Component.text("§cUso: /tagadmin remove <id>"));
+            source.sendMessage(Component.text("§cUtilize: /tagadmin remove <nome>"));
             return;
         }
 
@@ -114,16 +118,17 @@ public class TagAdminCommand implements SimpleCommand {
             return;
         }
 
-        source.sendMessage(Component.text("§e§lTags Disponíveis:"));
         source.sendMessage(Component.text(" "));
 
         for (Map.Entry<String, TagManager.TagInfo> entry : availableTags.entrySet()) {
             String tagId = entry.getKey();
             TagManager.TagInfo tagInfo = entry.getValue();
 
-            source.sendMessage(Component.text("§fID: §7" + tagId));
-            source.sendMessage(Component.text("§fDisplay: " + tagInfo.getDisplay()));
+            source.sendMessage(Component.text(" "));
+            source.sendMessage(Component.text("§fNome: §7" + tagId));
+            source.sendMessage(Component.text("§fTag: " + tagInfo.getDisplay()));
             source.sendMessage(Component.text("§fCor: " + tagInfo.getNameColor() + "Exemplo"));
+            source.sendMessage(Component.text(" "));
             source.sendMessage(Component.text("§fPermissão: §7" + (tagInfo.getPermission().isEmpty() ? "Nenhuma" : tagInfo.getPermission())));
             source.sendMessage(Component.text(" "));
         }
@@ -131,7 +136,7 @@ public class TagAdminCommand implements SimpleCommand {
 
     private void handleEdit(CommandSource source, String[] args) {
         if (args.length < 5) {
-            source.sendMessage(Component.text("§cUso: /tagadmin edit <id> <display> <cor> [permissão]"));
+            source.sendMessage(Component.text("§cUtilize: /tagadmin edit <nome> <tag> <cor> [permissão]"));
             source.sendMessage(Component.text("§cExemplo: /tagadmin edit vip &6[VIP+] &6 howly.tag.vipplus"));
             return;
         }
@@ -156,11 +161,14 @@ public class TagAdminCommand implements SimpleCommand {
         tagManager.removeAvailableTag(tagId);
         tagManager.addAvailableTag(tagId, display, permission, nameColor);
 
+        source.sendMessage(Component.text(" "));
         source.sendMessage(Component.text("§aTag editada com sucesso!"));
-        source.sendMessage(Component.text("§fID: §7" + tagId));
-        source.sendMessage(Component.text("§fDisplay: " + display));
+        source.sendMessage(Component.text("§fNome: §7" + tagId));
+        source.sendMessage(Component.text("§fTag: " + display));
         source.sendMessage(Component.text("§fCor do nome: " + nameColor + "Exemplo"));
+        source.sendMessage(Component.text(" "));
         source.sendMessage(Component.text("§fPermissão: §7" + (permission.isEmpty() ? "Nenhuma" : permission)));
+        source.sendMessage(Component.text(" "));
     }
 
     private void handleReload(CommandSource source) {
@@ -184,16 +192,16 @@ public class TagAdminCommand implements SimpleCommand {
 
     private void sendUsage(CommandSource source) {
         source.sendMessage(Component.text("§c§lUso do comando /tagadmin:"));
-        source.sendMessage(Component.text("§e/tagadmin add <id> <display> <cor> [permissão] §7- Adiciona uma nova tag"));
-        source.sendMessage(Component.text("§e/tagadmin remove <id> §7- Remove uma tag"));
-        source.sendMessage(Component.text("§e/tagadmin list §7- Lista todas as tags"));
-        source.sendMessage(Component.text("§e/tagadmin edit <id> <display> <cor> [permissão] §7- Edita uma tag"));
-        source.sendMessage(Component.text("§e/tagadmin reload §7- Recarrega as tags"));
+        source.sendMessage(Component.text(" "));
+        source.sendMessage(Component.text("§e/tagadmin add <nome> <tag> <cor> [permissão] §8- Adiciona uma nova tag"));
+        source.sendMessage(Component.text("§e/tagadmin remove <nome> §8- Remove uma tag"));
+        source.sendMessage(Component.text("§e/tagadmin list §8- Lista todas as tags"));
+        source.sendMessage(Component.text("§e/tagadmin edit <nome> <display> <cor> [permissão] §8- Edita uma tag"));
+        source.sendMessage(Component.text("§e/tagadmin reload §8- Recarrega as tags"));
         source.sendMessage(Component.text(" "));
         source.sendMessage(Component.text("§7Exemplos:"));
         source.sendMessage(Component.text("§f/tagadmin add vip &6[VIP] &6 howly.tag.vip"));
-        source.sendMessage(Component.text("§f/tagadmin add admin &c[ADMIN] &c"));
-        source.sendMessage(Component.text("§f/tagadmin add helper &a[HELPER] &a howly.tag.helper"));
+        source.sendMessage(Component.text(" "));
     }
 
     @Override
