@@ -76,8 +76,8 @@ public class TagCommand implements SimpleCommand {
         }
 
         player.sendMessage(Component.text(""));
-        player.sendMessage(Component.text("§eUse /tag <nome> para selecionar uma tag"));
-        player.sendMessage(Component.text("§eUse /tag remover para remover sua tag atual"));
+        player.sendMessage(Component.text("§eUtilize /tag <nome> para selecionar uma tag"));
+        player.sendMessage(Component.text("§eUtilize /tag remover para remover sua tag atual"));
         player.sendMessage(Component.text(""));
 
         // Mostrar tag atual
