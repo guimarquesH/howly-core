@@ -37,15 +37,18 @@ public class MuteCommand implements SimpleCommand {
         CommandSource source = invocation.source();
         String[] args = invocation.arguments();
 
-        if (!source.hasPermission("howly.mute")) {
-            source.sendMessage(Component.text("§cVocê não tem permissão para usar este comando."));
+        if (!source.hasPermission("howly.gerente")) {
+            source.sendMessage(Component.text("§cVocê precisa ser do grupo §4Gerente §cou superior para usar este comando."));
             return;
         }
 
         if (args.length < 2) {
-            source.sendMessage(Component.text("§cUso: /mute <jogador> <tempo> <motivo>"));
-            source.sendMessage(Component.text("§cExemplo: /mute Player 7d Spam no chat"));
-            source.sendMessage(Component.text("§cTempos: s (segundos), m (minutos), h (horas), d (dias), w (semanas), M (meses), permanent"));
+            source.sendMessage(Component.text(" "));
+            source.sendMessage(Component.text("§eUtilize: /mute <jogador> <tempo> <motivo>"));
+            source.sendMessage(Component.text(" "));
+            source.sendMessage(Component.text("§fExemplo: /mute Jogador 7d Spam no chat"));
+            source.sendMessage(Component.text("§fTempos: s (segundos), m (minutos), h (horas), d (dias), w (semanas), M (meses), permanent"));
+            source.sendMessage(Component.text(" "));
             return;
         }
 
