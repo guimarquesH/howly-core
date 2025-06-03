@@ -25,15 +25,15 @@ public class FindCommand implements SimpleCommand {
         CommandSource sender = invocation.source();
 
         if (sender instanceof Player player) {
-            if (!player.hasPermission("howly.helper")) {
-                sender.sendMessage(Component.text("§cVocê precisa ser do grupo §aHelper §cou superior para usar este comando."));
+            if (!player.hasPermission("howly.ajudante")) {
+                sender.sendMessage(Component.text("§cVocê precisa ser do grupo §cAjudante §cou superior para usar este comando."));
                 return;
             }
         }
 
         String[] args = invocation.arguments();
         if (args.length == 0) {
-            sender.sendMessage(Component.text("§cUso: /find <jogador>"));
+            sender.sendMessage(Component.text("§cUtilize: /find <jogador>"));
             return;
         }
 
