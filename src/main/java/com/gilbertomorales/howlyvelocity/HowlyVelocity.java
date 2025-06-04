@@ -174,7 +174,7 @@ public class HowlyVelocity {
 
         // Comando de tempo online
         commandManager.register("tempo", new TempoCommand(server, playtimeManager));
-        
+
         logger.info(LogColor.success("HowlyVelocity", "Comandos registrados com sucesso!"));
     }
 
@@ -196,6 +196,10 @@ public class HowlyVelocity {
 
         if (motdManager != null) {
             motdManager.saveMotd();
+        }
+
+        if (playtimeManager != null) {
+            playtimeManager.shutdown();
         }
 
         if (databaseManager != null) {
