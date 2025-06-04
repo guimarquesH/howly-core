@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.ResultSet;
 
 public class DatabaseManager {
 
@@ -82,6 +83,62 @@ public class DatabaseManager {
 
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
+
+            logger.info("Criando tabelas para banco " + databaseType.toUpperCase() + "...");
+
+            // Verificar se a tabela players já existe
+            if (tableExists(conn, "players")) {
+                logger.info("Tabela 'players' já existe, verificando estrutura...");
+                if (!columnExists(conn, "players", "id")) {
+                    logger.info("Coluna 'id' não existe, recriando tabela 'players'...");
+                    stmt.execute("DROP TABLE IF EXISTS players");
+                }
+            }
+
+            // Schema para jogadores (com ID único)
+            if (databaseType.equals("mysql")) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS players (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        uuid VARCHAR(36) UNIQUE NOT NULL,
+                        name VARCHAR(16) NOT NULL,
+                        first_join BIGINT NOT NULL,
+                        last_join BIGINT NOT NULL,
+                        
+                        INDEX idx_uuid (uuid),
+                        INDEX idx_name (name),
+                        INDEX idx_id (id)
+                    )
+                """);
+            } else if (databaseType.equals("h2")) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS players (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        uuid VARCHAR(36) UNIQUE NOT NULL,
+                        name VARCHAR(16) NOT NULL,
+                        first_join BIGINT NOT NULL,
+                        last_join BIGINT NOT NULL
+                    )
+                """);
+
+                // Criar índices separadamente para H2
+                createIndexIfNotExists(stmt, "idx_players_uuid", "players", "uuid");
+                createIndexIfNotExists(stmt, "idx_players_name", "players", "name");
+                createIndexIfNotExists(stmt, "idx_players_id", "players", "id");
+
+            } else { // SQLite
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS players (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        uuid TEXT UNIQUE NOT NULL,
+                        name TEXT NOT NULL,
+                        first_join INTEGER NOT NULL,
+                        last_join INTEGER NOT NULL
+                    )
+                """);
+            }
+
+            logger.info("Tabela 'players' criada/verificada com sucesso!");
 
             // Schema para punições
             if (databaseType.equals("mysql")) {
@@ -283,7 +340,31 @@ public class DatabaseManager {
             // Inserir dados padrão
             insertDefaultData(stmt, databaseType);
 
-            logger.info("Tabelas criadas com sucesso!");
+            logger.info("Todas as tabelas criadas com sucesso!");
+        }
+    }
+
+    private boolean tableExists(Connection conn, String tableName) {
+        try {
+            ResultSet rs = conn.getMetaData().getTables(null, null, tableName.toUpperCase(), null);
+            boolean exists = rs.next();
+            rs.close();
+            return exists;
+        } catch (SQLException e) {
+            logger.warn("Erro ao verificar se tabela existe: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean columnExists(Connection conn, String tableName, String columnName) {
+        try {
+            ResultSet rs = conn.getMetaData().getColumns(null, null, tableName.toUpperCase(), columnName.toUpperCase());
+            boolean exists = rs.next();
+            rs.close();
+            return exists;
+        } catch (SQLException e) {
+            logger.warn("Erro ao verificar se coluna existe: " + e.getMessage());
+            return false;
         }
     }
 

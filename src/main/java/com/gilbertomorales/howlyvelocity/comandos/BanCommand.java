@@ -4,6 +4,7 @@ import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.api.punishment.Punishment;
 import com.gilbertomorales.howlyvelocity.managers.PlayerDataManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
+import com.gilbertomorales.howlyvelocity.utils.PlayerUtils;
 import com.gilbertomorales.howlyvelocity.utils.TimeUtils;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
@@ -13,8 +14,6 @@ import net.kyori.adventure.text.Component;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -46,15 +45,16 @@ public class BanCommand implements SimpleCommand {
 
         if (args.length < 2) {
             source.sendMessage(legacySection().deserialize(""));
-            source.sendMessage(legacySection().deserialize("§eUtilize: /ban <usuário> <tempo> <motivo>"));
+            source.sendMessage(legacySection().deserialize("§eUtilize: /ban <usuário/#id> <tempo> <motivo>"));
             source.sendMessage(legacySection().deserialize(""));
             source.sendMessage(legacySection().deserialize("§fExemplo: §7/ban Usuario 7d Motivo"));
+            source.sendMessage(legacySection().deserialize("§fExemplo: §7/ban #123 7d Motivo"));
             source.sendMessage(legacySection().deserialize("§fTempos: §7s (segundos), m (minutos), h (horas), d (dias), w (semanas), M (meses), permanente"));
             source.sendMessage(legacySection().deserialize(""));
             return;
         }
 
-        final String targetName = args[0];
+        final String targetIdentifier = args[0];
         final String timeArg = args[1];
         final String reason = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
 
@@ -83,26 +83,22 @@ public class BanCommand implements SimpleCommand {
             duration = null;
         }
 
-        Optional<Player> targetOptional = server.getPlayer(targetName);
+        source.sendMessage(legacySection().deserialize("§eBuscando usuário..."));
 
-        if (targetOptional.isPresent()) {
-            Player target = targetOptional.get();
-            banUser(source, target.getUniqueId(), target.getUsername(), reason, duration, punisherName);
-        } else {
-            source.sendMessage(legacySection().deserialize("§eBuscando usuário no banco de dados..."));
-            playerDataManager.getPlayerUUID(targetName).thenAccept(uuid -> {
-                if (uuid != null) {
-                    playerDataManager.getPlayerName(uuid).thenAccept(correctName -> {
-                        banUser(source, uuid, correctName != null ? correctName : targetName, reason, duration, punisherName);
-                    });
-                } else {
-                    source.sendMessage(legacySection().deserialize("§cUsuário não encontrado no banco de dados."));
-                }
-            });
-        }
+        PlayerUtils.findPlayer(server, targetIdentifier).thenAccept(result -> {
+            if (result != null) {
+                banUser(source, result.getUUID(), result.getName(), reason, duration, punisherName);
+            } else {
+                source.sendMessage(legacySection().deserialize("§cUsuário não encontrado."));
+            }
+        }).exceptionally(ex -> {
+            source.sendMessage(legacySection().deserialize("§cErro ao buscar usuário: " + ex.getMessage()));
+            ex.printStackTrace();
+            return null;
+        });
     }
 
-    private void banUser(CommandSource source, UUID targetUUID, String targetName, String reason, Long duration, String punisherName) {
+    private void banUser(CommandSource source, java.util.UUID targetUUID, String targetName, String reason, Long duration, String punisherName) {
         CompletableFuture<Punishment> banFuture = api.getPunishmentAPI().banPlayer(targetUUID, reason, duration, punisherName);
 
         banFuture.thenAccept(punishment -> {
@@ -125,10 +121,17 @@ public class BanCommand implements SimpleCommand {
 
         if (args.length == 1) {
             String partialName = args[0].toLowerCase();
-            return server.getAllPlayers().stream()
+            List<String> suggestions = server.getAllPlayers().stream()
                     .map(Player::getUsername)
                     .filter(name -> name.toLowerCase().startsWith(partialName))
                     .collect(Collectors.toList());
+            
+            // Adicionar sugestões de ID se começar com #
+            if (partialName.startsWith("#")) {
+                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
+            }
+            
+            return suggestions;
         } else if (args.length == 2) {
             String partialTime = args[1].toLowerCase();
             return List.of("1h", "1d", "7d", "30d", "permanent").stream()

@@ -4,6 +4,7 @@ import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.api.punishment.Punishment;
 import com.gilbertomorales.howlyvelocity.managers.PlayerDataManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
+import com.gilbertomorales.howlyvelocity.utils.PlayerUtils;
 import com.gilbertomorales.howlyvelocity.utils.TimeUtils;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
@@ -13,8 +14,6 @@ import net.kyori.adventure.text.Component;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -46,15 +45,16 @@ public class MuteCommand implements SimpleCommand {
 
         if (args.length < 2) {
             source.sendMessage(Component.text(" "));
-            source.sendMessage(Component.text("§eUtilize: /mute <jogador> <tempo> <motivo>"));
+            source.sendMessage(Component.text("§eUtilize: /mute <jogador/#id> <tempo> <motivo>"));
             source.sendMessage(Component.text(" "));
             source.sendMessage(Component.text("§fExemplo: §7/mute Jogador 7d Spam no chat"));
+            source.sendMessage(Component.text("§fExemplo: §7/mute #123 7d Spam no chat"));
             source.sendMessage(Component.text("§fTempos: §7s (segundos), m (minutos), h (horas), d (dias), w (semanas), M (meses), permanent"));
             source.sendMessage(Component.text(" "));
             return;
         }
 
-        final String targetName = args[0];
+        final String targetIdentifier = args[0];
         final String timeArg = args[1];
         final String reason = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
 
@@ -88,32 +88,22 @@ public class MuteCommand implements SimpleCommand {
             duration = null;
         }
 
-        // Primeiro, tentar encontrar o jogador online
-        Optional<Player> targetOptional = server.getPlayer(targetName);
+        source.sendMessage(Component.text("§eBuscando jogador..."));
 
-        if (targetOptional.isPresent()) {
-            // Jogador está online
-            Player target = targetOptional.get();
-            mutePlayer(source, target.getUniqueId(), target.getUsername(), reason, duration, punisherName);
-        } else {
-            // Jogador está offline, buscar no banco de dados
-            source.sendMessage(Component.text("§eBuscando jogador no banco de dados..."));
-
-            playerDataManager.getPlayerUUID(targetName).thenAccept(uuid -> {
-                if (uuid != null) {
-                    // Jogador encontrado no banco de dados
-                    playerDataManager.getPlayerName(uuid).thenAccept(correctName -> {
-                        mutePlayer(source, uuid, correctName != null ? correctName : targetName, reason, duration, punisherName);
-                    });
-                } else {
-                    // Jogador não encontrado
-                    source.sendMessage(Component.text("§cJogador não encontrado no banco de dados."));
-                }
-            });
-        }
+        PlayerUtils.findPlayer(server, targetIdentifier).thenAccept(result -> {
+            if (result != null) {
+                mutePlayer(source, result.getUUID(), result.getName(), reason, duration, punisherName);
+            } else {
+                source.sendMessage(Component.text("§cJogador não encontrado."));
+            }
+        }).exceptionally(ex -> {
+            source.sendMessage(Component.text("§cErro ao buscar jogador: " + ex.getMessage()));
+            ex.printStackTrace();
+            return null;
+        });
     }
 
-    private void mutePlayer(CommandSource source, UUID targetUUID, String targetName, String reason, Long duration, String punisherName) {
+    private void mutePlayer(CommandSource source, java.util.UUID targetUUID, String targetName, String reason, Long duration, String punisherName) {
         CompletableFuture<Punishment> muteFuture = api.getPunishmentAPI().mutePlayer(targetUUID, reason, duration, punisherName);
 
         muteFuture.thenAccept(punishment -> {
@@ -133,17 +123,23 @@ public class MuteCommand implements SimpleCommand {
         });
     }
 
-
     @Override
     public List<String> suggest(Invocation invocation) {
         String[] args = invocation.arguments();
 
         if (args.length == 1) {
             String partialName = args[0].toLowerCase();
-            return server.getAllPlayers().stream()
+            List<String> suggestions = server.getAllPlayers().stream()
                     .map(Player::getUsername)
                     .filter(name -> name.toLowerCase().startsWith(partialName))
                     .collect(Collectors.toList());
+            
+            // Adicionar sugestões de ID se começar com #
+            if (partialName.startsWith("#")) {
+                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
+            }
+            
+            return suggestions;
         } else if (args.length == 2) {
             String partialTime = args[1].toLowerCase();
             return List.of("1h", "1d", "7d", "30d", "permanent").stream()

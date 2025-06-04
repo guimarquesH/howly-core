@@ -3,6 +3,7 @@ package com.gilbertomorales.howlyvelocity.comandos;
 import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.managers.PlayerDataManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
+import com.gilbertomorales.howlyvelocity.utils.PlayerUtils;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
@@ -10,7 +11,6 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -39,11 +39,11 @@ public class UnbanCommand implements SimpleCommand {
         }
 
         if (args.length < 1) {
-            source.sendMessage(Component.text("§cUtilize: /unban <jogador>"));
+            source.sendMessage(Component.text("§cUtilize: /unban <jogador/#id>"));
             return;
         }
 
-        String targetName = args[0];
+        String targetIdentifier = args[0];
 
         // Obter nome do unbanner
         String unbannerName;
@@ -53,23 +53,22 @@ public class UnbanCommand implements SimpleCommand {
             unbannerName = "Console";
         }
 
-        // Buscar jogador no banco de dados
-        source.sendMessage(Component.text("§eBuscando jogador no banco de dados..."));
+        source.sendMessage(Component.text("§eBuscando jogador..."));
 
-        playerDataManager.getPlayerUUID(targetName).thenAccept(uuid -> {
-            if (uuid != null) {
-                // Jogador encontrado no banco de dados
-                playerDataManager.getPlayerName(uuid).thenAccept(correctName -> {
-                    unbanPlayer(source, uuid, correctName != null ? correctName : targetName, unbannerName);
-                });
+        PlayerUtils.findPlayer(server, targetIdentifier).thenAccept(result -> {
+            if (result != null) {
+                unbanPlayer(source, result.getUUID(), result.getName(), unbannerName);
             } else {
-                // Jogador não encontrado
-                source.sendMessage(Component.text("§cJogador não encontrado no banco de dados."));
+                source.sendMessage(Component.text("§cJogador não encontrado."));
             }
+        }).exceptionally(ex -> {
+            source.sendMessage(Component.text("§cErro ao buscar jogador: " + ex.getMessage()));
+            ex.printStackTrace();
+            return null;
         });
     }
 
-    private void unbanPlayer(CommandSource source, UUID targetUUID, String targetName, String unbannerName) {
+    private void unbanPlayer(CommandSource source, java.util.UUID targetUUID, String targetName, String unbannerName) {
         // Verificar se o jogador está banido
         api.getPunishmentAPI().isPlayerBanned(targetUUID).thenAccept(isBanned -> {
             if (!isBanned) {
@@ -108,10 +107,17 @@ public class UnbanCommand implements SimpleCommand {
 
         if (args.length == 1) {
             String partialName = args[0].toLowerCase();
-            return server.getAllPlayers().stream()
+            List<String> suggestions = server.getAllPlayers().stream()
                     .map(Player::getUsername)
                     .filter(name -> name.toLowerCase().startsWith(partialName))
                     .collect(Collectors.toList());
+            
+            // Adicionar sugestões de ID se começar com #
+            if (partialName.startsWith("#")) {
+                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
+            }
+            
+            return suggestions;
         }
 
         return List.of();

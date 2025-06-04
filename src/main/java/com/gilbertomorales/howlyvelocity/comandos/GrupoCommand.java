@@ -1,6 +1,7 @@
 package com.gilbertomorales.howlyvelocity.comandos;
 
 import com.gilbertomorales.howlyvelocity.managers.GroupManager;
+import com.gilbertomorales.howlyvelocity.utils.PlayerUtils;
 import com.gilbertomorales.howlyvelocity.utils.TitleAPI;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
@@ -10,7 +11,6 @@ import net.kyori.adventure.text.Component;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class GrupoCommand implements SimpleCommand {
@@ -60,28 +60,37 @@ public class GrupoCommand implements SimpleCommand {
             return;
         }
 
-        String targetName = args[1];
+        String targetIdentifier = args[1];
         String groupName = args[2].toLowerCase();
-
-        Optional<Player> targetOptional = server.getPlayer(targetName);
-        if (targetOptional.isEmpty()) {
-            sender.sendMessage(Component.text("§cEste usuário não está online."));
-            return;
-        }
-
-        Player target = targetOptional.get();
 
         if (!groupManager.groupExists(groupName)) {
             sender.sendMessage(Component.text("§cO grupo especificado não existe."));
             return;
         }
 
-        switch (action) {
-            case "adicionar", "add" -> addPlayerToGroup(sender, target, groupName);
-            case "remover", "remove" -> removePlayerFromGroup(sender, target, groupName);
-            case "definir", "set" -> setPlayerGroup(sender, target, groupName);
-            default -> sendUsage(sender);
-        }
+        sender.sendMessage(Component.text("§eBuscando usuário..."));
+
+        PlayerUtils.findPlayer(server, targetIdentifier).thenAccept(result -> {
+            if (result != null) {
+                if (result.isOnline()) {
+                    Player target = result.getOnlinePlayer();
+                    switch (action) {
+                        case "adicionar", "add" -> addPlayerToGroup(sender, target, groupName);
+                        case "remover", "remove" -> removePlayerFromGroup(sender, target, groupName);
+                        case "definir", "set" -> setPlayerGroup(sender, target, groupName);
+                        default -> sendUsage(sender);
+                    }
+                } else {
+                    sender.sendMessage(Component.text("§cO usuário precisa estar online para alterar grupos."));
+                }
+            } else {
+                sender.sendMessage(Component.text("§cUsuário não encontrado."));
+            }
+        }).exceptionally(ex -> {
+            sender.sendMessage(Component.text("§cErro ao buscar usuário: " + ex.getMessage()));
+            ex.printStackTrace();
+            return null;
+        });
     }
 
     private void addPlayerToGroup(Player sender, Player target, String groupName) {
@@ -165,9 +174,9 @@ public class GrupoCommand implements SimpleCommand {
         sender.sendMessage(Component.text("§eUso do comando /grupo:"));
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§f/grupo listar §7- Lista todos os grupos disponíveis"));
-        sender.sendMessage(Component.text("§f/grupo adicionar <usuário> <grupo> §7- Adiciona um usuário ao grupo"));
-        sender.sendMessage(Component.text("§f/grupo remover <usuário> <grupo> §7- Remove um usuário do grupo"));
-        sender.sendMessage(Component.text("§f/grupo definir <usuário> <grupo> §7- Define o grupo principal do usuário"));
+        sender.sendMessage(Component.text("§f/grupo adicionar <usuário/#id> <grupo> §7- Adiciona um usuário ao grupo"));
+        sender.sendMessage(Component.text("§f/grupo remover <usuário/#id> <grupo> §7- Remove um usuário do grupo"));
+        sender.sendMessage(Component.text("§f/grupo definir <usuário/#id> <grupo> §7- Define o grupo principal do usuário"));
         sender.sendMessage(Component.text(" "));
     }
 
@@ -180,10 +189,18 @@ public class GrupoCommand implements SimpleCommand {
                     .filter(action -> action.startsWith(args[0].toLowerCase()))
                     .collect(Collectors.toList());
         } else if (args.length == 2 && !args[0].equalsIgnoreCase("listar")) {
-            return server.getAllPlayers().stream()
+            String arg = args[1].toLowerCase();
+            List<String> suggestions = server.getAllPlayers().stream()
                     .map(Player::getUsername)
-                    .filter(name -> name.toLowerCase().startsWith(args[1].toLowerCase()))
+                    .filter(name -> name.toLowerCase().startsWith(arg))
                     .collect(Collectors.toList());
+            
+            // Adicionar sugestões de ID se começar com #
+            if (arg.startsWith("#")) {
+                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
+            }
+            
+            return suggestions;
         } else if (args.length == 3) {
             return groupManager.getAvailableGroups().keySet().stream()
                     .filter(group -> !group.equals("default"))

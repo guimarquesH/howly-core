@@ -3,6 +3,7 @@ package com.gilbertomorales.howlyvelocity.comandos;
 import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.managers.PlayerDataManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
+import com.gilbertomorales.howlyvelocity.utils.PlayerUtils;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
@@ -10,8 +11,6 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
 
 import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -40,11 +39,11 @@ public class UnmuteCommand implements SimpleCommand {
         }
 
         if (args.length < 1) {
-            source.sendMessage(Component.text("§cUtilize: /unmute <jogador>"));
+            source.sendMessage(Component.text("§cUtilize: /unmute <jogador/#id>"));
             return;
         }
 
-        String targetName = args[0];
+        String targetIdentifier = args[0];
 
         // Obter nome do unmuter
         String unmuterName;
@@ -54,32 +53,22 @@ public class UnmuteCommand implements SimpleCommand {
             unmuterName = "Console";
         }
 
-        // Primeiro, tentar encontrar o jogador online
-        Optional<Player> targetOptional = server.getPlayer(targetName);
+        source.sendMessage(Component.text("§eBuscando jogador..."));
 
-        if (targetOptional.isPresent()) {
-            // Jogador está online
-            Player target = targetOptional.get();
-            unmutePlayer(source, target.getUniqueId(), target.getUsername(), unmuterName);
-        } else {
-            // Jogador está offline, buscar no banco de dados
-            source.sendMessage(Component.text("§eBuscando jogador no banco de dados..."));
-
-            playerDataManager.getPlayerUUID(targetName).thenAccept(uuid -> {
-                if (uuid != null) {
-                    // Jogador encontrado no banco de dados
-                    playerDataManager.getPlayerName(uuid).thenAccept(correctName -> {
-                        unmutePlayer(source, uuid, correctName != null ? correctName : targetName, unmuterName);
-                    });
-                } else {
-                    // Jogador não encontrado
-                    source.sendMessage(Component.text("§cJogador não encontrado no banco de dados."));
-                }
-            });
-        }
+        PlayerUtils.findPlayer(server, targetIdentifier).thenAccept(result -> {
+            if (result != null) {
+                unmutePlayer(source, result.getUUID(), result.getName(), unmuterName);
+            } else {
+                source.sendMessage(Component.text("§cJogador não encontrado."));
+            }
+        }).exceptionally(ex -> {
+            source.sendMessage(Component.text("§cErro ao buscar jogador: " + ex.getMessage()));
+            ex.printStackTrace();
+            return null;
+        });
     }
 
-    private void unmutePlayer(CommandSource source, UUID targetUUID, String targetName, String unmuterName) {
+    private void unmutePlayer(CommandSource source, java.util.UUID targetUUID, String targetName, String unmuterName) {
         // Verificar se o jogador está mutado
         api.getPunishmentAPI().isPlayerMuted(targetUUID).thenAccept(isMuted -> {
             if (!isMuted) {
@@ -123,10 +112,17 @@ public class UnmuteCommand implements SimpleCommand {
 
         if (args.length == 1) {
             String partialName = args[0].toLowerCase();
-            return server.getAllPlayers().stream()
+            List<String> suggestions = server.getAllPlayers().stream()
                     .map(Player::getUsername)
                     .filter(name -> name.toLowerCase().startsWith(partialName))
                     .collect(Collectors.toList());
+            
+            // Adicionar sugestões de ID se começar com #
+            if (partialName.startsWith("#")) {
+                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
+            }
+            
+            return suggestions;
         }
 
         return List.of();

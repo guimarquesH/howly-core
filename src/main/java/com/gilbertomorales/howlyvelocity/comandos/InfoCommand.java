@@ -45,14 +45,25 @@ public class InfoCommand implements SimpleCommand {
 
         String[] args = invocation.arguments();
         if (args.length == 0) {
-            sender.sendMessage(Component.text("§cUtilize: /info <jogador>"));
+            sender.sendMessage(Component.text("§cUtilize: /info <jogador> ou /info #<id>"));
             return;
         }
 
-        String targetName = args[0];
+        String targetIdentifier = args[0];
 
-        // Primeiro, tentar encontrar o jogador online
-        Optional<Player> targetOptional = server.getPlayer(targetName);
+        // Verificar se é busca por ID (#1, #2, etc.)
+        if (targetIdentifier.startsWith("#")) {
+            try {
+                int playerId = Integer.parseInt(targetIdentifier.substring(1));
+                showPlayerInfoById(sender, playerId);
+            } catch (NumberFormatException e) {
+                sender.sendMessage(Component.text("§cID inválido. Use /info #<número>"));
+            }
+            return;
+        }
+
+        // Busca por nome
+        Optional<Player> targetOptional = server.getPlayer(targetIdentifier);
 
         if (targetOptional.isPresent()) {
             Player target = targetOptional.get();
@@ -61,11 +72,15 @@ public class InfoCommand implements SimpleCommand {
             // Jogador está offline, buscar no banco de dados
             sender.sendMessage(Component.text("§eBuscando jogador no banco de dados..."));
 
-            playerDataManager.getPlayerUUID(targetName).thenAccept(uuid -> {
+            playerDataManager.getPlayerUUID(targetIdentifier).thenAccept(uuid -> {
                 if (uuid != null) {
                     // Jogador encontrado no banco de dados
-                    playerDataManager.getPlayerName(uuid).thenAccept(correctName -> {
-                        showOfflinePlayerInfo(sender, uuid, correctName != null ? correctName : targetName);
+                    playerDataManager.getPlayerInfo(uuid).thenAccept(playerInfo -> {
+                        if (playerInfo != null) {
+                            showOfflinePlayerInfo(sender, playerInfo);
+                        } else {
+                            sender.sendMessage(Component.text("§cErro ao carregar informações do jogador."));
+                        }
                     });
                 } else {
                     // Jogador não encontrado
@@ -75,7 +90,45 @@ public class InfoCommand implements SimpleCommand {
         }
     }
 
+    private void showPlayerInfoById(CommandSource sender, int playerId) {
+        sender.sendMessage(Component.text("§eBuscando jogador com ID #" + playerId + "..."));
+
+        playerDataManager.getPlayerInfoById(playerId).thenAccept(playerInfo -> {
+            if (playerInfo != null) {
+                // Verificar se o jogador está online
+                Optional<Player> onlinePlayer = server.getPlayer(playerInfo.getUuid());
+                if (onlinePlayer.isPresent()) {
+                    showPlayerInfo(sender, onlinePlayer.get(), playerInfo.getName(), playerInfo.getId());
+                } else {
+                    showOfflinePlayerInfo(sender, playerInfo);
+                }
+            } else {
+                sender.sendMessage(Component.text("§cJogador com ID #" + playerId + " não encontrado."));
+            }
+        }).exceptionally(ex -> {
+            sender.sendMessage(Component.text("§cErro ao buscar jogador: " + ex.getMessage()));
+            ex.printStackTrace();
+            return null;
+        });
+    }
+
     private void showPlayerInfo(CommandSource sender, Player target, String targetName) {
+        // Buscar ID do jogador
+        playerDataManager.getPlayerId(target.getUniqueId()).thenAccept(playerId -> {
+            if (playerId != null) {
+                showPlayerInfo(sender, target, targetName, playerId);
+            } else {
+                // Se não conseguir buscar o ID, mostrar sem ele
+                showPlayerInfoWithoutId(sender, target, targetName);
+            }
+        }).exceptionally(ex -> {
+            // Em caso de erro, mostrar sem o ID
+            showPlayerInfoWithoutId(sender, target, targetName);
+            return null;
+        });
+    }
+
+    private void showPlayerInfo(CommandSource sender, Player target, String targetName, Integer playerId) {
         String serverName = target.getCurrentServer()
                 .map(connection -> connection.getServerInfo().getName())
                 .orElse("Desconhecido");
@@ -93,6 +146,7 @@ public class InfoCommand implements SimpleCommand {
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§fUsuário: §7" + targetName));
         sender.sendMessage(Component.text("§fGrupo: §7" + groupName));
+        sender.sendMessage(Component.text("§fID: §7#" + playerId));
         sender.sendMessage(Component.text("§fUUID: §7" + target.getUniqueId().toString()));
         sender.sendMessage(Component.text(" "));
 
@@ -101,10 +155,20 @@ public class InfoCommand implements SimpleCommand {
             sender.sendMessage(Component.text("§fTag: §7Nenhuma"));
         } else {
             TagManager.TagInfo tagInfo = tagManager.getTagInfo(currentTagId);
-            sender.sendMessage(Component.text("§fTag: " + tagInfo.getDisplay()));
+            if (tagInfo != null) {
+                sender.sendMessage(Component.text("§fTag: " + tagInfo.getDisplay()));
+            } else {
+                sender.sendMessage(Component.text("§fTag: §7Nenhuma"));
+            }
         }
 
-        sender.sendMessage(Component.text("§fMedalha: §7" + medalManager.getPlayerMedal(target)));
+        String medal = medalManager.getPlayerMedal(target);
+        if (medal.isEmpty()) {
+            sender.sendMessage(Component.text("§fMedalha: §7Nenhuma"));
+        } else {
+            sender.sendMessage(Component.text("§fMedalha: " + medal));
+        }
+
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§fConexão: §7" + serverName));
         sender.sendMessage(Component.text("§fVersão: §7" + target.getProtocolVersion().getName()));
@@ -130,24 +194,95 @@ public class InfoCommand implements SimpleCommand {
         });
     }
 
-    private void showOfflinePlayerInfo(CommandSource sender, java.util.UUID uuid, String targetName) {
-        // Obter informações do grupo para jogador offline
-        String groupName = "Membro"; // Padrão para offline
+    private void showPlayerInfoWithoutId(CommandSource sender, Player target, String targetName) {
+        String serverName = target.getCurrentServer()
+                .map(connection -> connection.getServerInfo().getName())
+                .orElse("Desconhecido");
+
+        // Obter informações do grupo
+        GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
+        String groupName = "Membro";
+        if (groupManager.isLuckPermsAvailable()) {
+            GroupManager.GroupInfo groupInfo = groupManager.getPlayerGroupInfo(target);
+            groupName = groupInfo.getDisplayName();
+        }
 
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§eInformações:"));
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§fUsuário: §7" + targetName));
         sender.sendMessage(Component.text("§fGrupo: §7" + groupName));
-        sender.sendMessage(Component.text("§fUUID: §7" + uuid.toString()));
+        sender.sendMessage(Component.text("§fID: §7Carregando..."));
+        sender.sendMessage(Component.text("§fUUID: §7" + target.getUniqueId().toString()));
         sender.sendMessage(Component.text(" "));
 
-        String currentTagId = tagManager.getCurrentPlayerTag(uuid);
+        String currentTagId = tagManager.getCurrentPlayerTag(target.getUniqueId());
         if (currentTagId == null || currentTagId.isEmpty()) {
             sender.sendMessage(Component.text("§fTag: §7Nenhuma"));
         } else {
             TagManager.TagInfo tagInfo = tagManager.getTagInfo(currentTagId);
-            sender.sendMessage(Component.text("§fTag: " + tagInfo.getDisplay()));
+            if (tagInfo != null) {
+                sender.sendMessage(Component.text("§fTag: " + tagInfo.getDisplay()));
+            } else {
+                sender.sendMessage(Component.text("§fTag: §7Nenhuma"));
+            }
+        }
+
+        String medal = medalManager.getPlayerMedal(target);
+        if (medal.isEmpty()) {
+            sender.sendMessage(Component.text("§fMedalha: §7Nenhuma"));
+        } else {
+            sender.sendMessage(Component.text("§fMedalha: " + medal));
+        }
+
+        sender.sendMessage(Component.text(" "));
+        sender.sendMessage(Component.text("§fConexão: §7" + serverName));
+        sender.sendMessage(Component.text("§fVersão: §7" + target.getProtocolVersion().getName()));
+        sender.sendMessage(Component.text("§fPing: §7" + target.getPing() + "ms"));
+        sender.sendMessage(Component.text(" "));
+
+        // Buscar informações de login
+        playerDataManager.getPlayerLoginInfo(target.getUniqueId()).thenAccept(loginInfo -> {
+            if (loginInfo != null) {
+                long firstJoin = loginInfo[0];
+                long lastJoin = loginInfo[1];
+
+                sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
+                sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
+            } else {
+                sender.sendMessage(Component.text("§fPrimeiro login: §7Desconhecido"));
+                sender.sendMessage(Component.text("§fÚltimo login: §7Agora"));
+            }
+            sender.sendMessage(Component.text(" "));
+
+            // Verificar punições
+            checkPunishments(sender, target.getUniqueId());
+        });
+    }
+
+    private void showOfflinePlayerInfo(CommandSource sender, PlayerDataManager.PlayerInfo playerInfo) {
+        // Obter informações do grupo para jogador offline
+        String groupName = "Membro"; // Padrão para offline
+
+        sender.sendMessage(Component.text(" "));
+        sender.sendMessage(Component.text("§eInformações:"));
+        sender.sendMessage(Component.text(" "));
+        sender.sendMessage(Component.text("§fUsuário: §7" + playerInfo.getName()));
+        sender.sendMessage(Component.text("§fGrupo: §7" + groupName));
+        sender.sendMessage(Component.text("§fID: §7#" + playerInfo.getId()));
+        sender.sendMessage(Component.text("§fUUID: §7" + playerInfo.getUuid().toString()));
+        sender.sendMessage(Component.text(" "));
+
+        String currentTagId = tagManager.getCurrentPlayerTag(playerInfo.getUuid());
+        if (currentTagId == null || currentTagId.isEmpty()) {
+            sender.sendMessage(Component.text("§fTag: §7Nenhuma"));
+        } else {
+            TagManager.TagInfo tagInfo = tagManager.getTagInfo(currentTagId);
+            if (tagInfo != null) {
+                sender.sendMessage(Component.text("§fTag: " + tagInfo.getDisplay()));
+            } else {
+                sender.sendMessage(Component.text("§fTag: §7Nenhuma"));
+            }
         }
 
         sender.sendMessage(Component.text("§fMedalha: §7Offline"));
@@ -157,23 +292,15 @@ public class InfoCommand implements SimpleCommand {
         sender.sendMessage(Component.text("§fPing: §7N/A"));
         sender.sendMessage(Component.text(" "));
 
-        // Buscar informações de login
-        playerDataManager.getPlayerLoginInfo(uuid).thenAccept(loginInfo -> {
-            if (loginInfo != null) {
-                long firstJoin = loginInfo[0];
-                long lastJoin = loginInfo[1];
+        long firstJoin = playerInfo.getFirstJoin();
+        long lastJoin = playerInfo.getLastJoin();
 
-                sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
-                sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
-            } else {
-                sender.sendMessage(Component.text("§fPrimeiro login: §7Desconhecido"));
-                sender.sendMessage(Component.text("§fÚltimo login: §7Desconhecido"));
-            }
-            sender.sendMessage(Component.text(" "));
+        sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
+        sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
+        sender.sendMessage(Component.text(" "));
 
-            // Verificar punições
-            checkPunishments(sender, uuid);
-        });
+        // Verificar punições
+        checkPunishments(sender, playerInfo.getUuid());
     }
 
     private void checkPunishments(CommandSource sender, java.util.UUID uuid) {
@@ -207,14 +334,23 @@ public class InfoCommand implements SimpleCommand {
         });
     }
 
-
     @Override
     public List<String> suggest(Invocation invocation) {
         if (invocation.arguments().length == 1) {
-            return server.getAllPlayers().stream()
+            String arg = invocation.arguments()[0].toLowerCase();
+            
+            // Sugerir jogadores online
+            List<String> suggestions = server.getAllPlayers().stream()
                     .map(Player::getUsername)
-                    .filter(name -> name.toLowerCase().startsWith(invocation.arguments()[0].toLowerCase()))
+                    .filter(name -> name.toLowerCase().startsWith(arg))
                     .toList();
+            
+            // Se começar com #, sugerir alguns IDs
+            if (arg.startsWith("#")) {
+                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
+            }
+            
+            return suggestions;
         }
         return List.of();
     }

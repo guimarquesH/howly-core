@@ -15,28 +15,11 @@ public class PlayerDataManager {
     // Cache para melhorar performance
     private final ConcurrentHashMap<String, UUID> nameToUuidCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, String> uuidToNameCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, UUID> idToUuidCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Integer> uuidToIdCache = new ConcurrentHashMap<>();
 
     public PlayerDataManager(DatabaseManager databaseManager) {
         this.databaseManager = databaseManager;
-        createPlayerTable();
-    }
-
-    private void createPlayerTable() {
-        CompletableFuture.runAsync(() -> {
-            try (Connection conn = databaseManager.getConnection();
-                 PreparedStatement stmt = conn.prepareStatement(
-                         "CREATE TABLE IF NOT EXISTS players (" +
-                                 "uuid VARCHAR(36) PRIMARY KEY, " +
-                                 "name VARCHAR(16) NOT NULL, " +
-                                 "first_join BIGINT NOT NULL, " +
-                                 "last_join BIGINT NOT NULL, " +
-                                 "INDEX idx_name (name))"
-                 )) {
-                stmt.executeUpdate();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        });
     }
 
     public CompletableFuture<Void> updatePlayerData(UUID uuid, String name) {
@@ -46,12 +29,13 @@ public class PlayerDataManager {
 
                 // Verificar se o jogador já existe
                 try (PreparedStatement checkStmt = conn.prepareStatement(
-                        "SELECT uuid FROM players WHERE uuid = ?")) {
+                        "SELECT id, uuid FROM players WHERE uuid = ?")) {
                     checkStmt.setString(1, uuid.toString());
                     ResultSet rs = checkStmt.executeQuery();
 
                     if (rs.next()) {
                         // Atualizar jogador existente
+                        int playerId = rs.getInt("id");
                         try (PreparedStatement updateStmt = conn.prepareStatement(
                                 "UPDATE players SET name = ?, last_join = ? WHERE uuid = ?")) {
                             updateStmt.setString(1, name);
@@ -59,20 +43,35 @@ public class PlayerDataManager {
                             updateStmt.setString(3, uuid.toString());
                             updateStmt.executeUpdate();
                         }
+                        
+                        // Atualizar cache
+                        uuidToIdCache.put(uuid, playerId);
+                        idToUuidCache.put(playerId, uuid);
                     } else {
                         // Inserir novo jogador
                         try (PreparedStatement insertStmt = conn.prepareStatement(
-                                "INSERT INTO players (uuid, name, first_join, last_join) VALUES (?, ?, ?, ?)")) {
+                                "INSERT INTO players (uuid, name, first_join, last_join) VALUES (?, ?, ?, ?)",
+                                PreparedStatement.RETURN_GENERATED_KEYS)) {
                             insertStmt.setString(1, uuid.toString());
                             insertStmt.setString(2, name);
                             insertStmt.setLong(3, currentTime);
                             insertStmt.setLong(4, currentTime);
                             insertStmt.executeUpdate();
+                            
+                            // Obter o ID gerado
+                            try (ResultSet generatedKeys = insertStmt.getGeneratedKeys()) {
+                                if (generatedKeys.next()) {
+                                    int playerId = generatedKeys.getInt(1);
+                                    // Atualizar cache
+                                    uuidToIdCache.put(uuid, playerId);
+                                    idToUuidCache.put(playerId, uuid);
+                                }
+                            }
                         }
                     }
                 }
 
-                // Atualizar cache
+                // Atualizar cache de nomes
                 nameToUuidCache.put(name.toLowerCase(), uuid);
                 uuidToNameCache.put(uuid, name);
 
@@ -98,15 +97,100 @@ public class PlayerDataManager {
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(
-                         "SELECT uuid FROM players WHERE LOWER(name) = LOWER(?)")) {
+                         "SELECT uuid, id FROM players WHERE LOWER(name) = LOWER(?)")) {
                 stmt.setString(1, name);
                 ResultSet rs = stmt.executeQuery();
 
                 if (rs.next()) {
                     UUID uuid = UUID.fromString(rs.getString("uuid"));
+                    int playerId = rs.getInt("id");
+                    
                     // Atualizar cache
                     nameToUuidCache.put(name.toLowerCase(), uuid);
+                    uuidToIdCache.put(uuid, playerId);
+                    idToUuidCache.put(playerId, uuid);
+                    
                     return uuid;
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            return null;
+        });
+    }
+
+    /**
+     * Busca o UUID de um jogador pelo ID
+     * @param playerId ID do jogador
+     * @return CompletableFuture com o UUID ou null se não encontrado
+     */
+    public CompletableFuture<UUID> getPlayerUUIDById(int playerId) {
+        // Verificar cache primeiro
+        UUID cachedUUID = idToUuidCache.get(playerId);
+        if (cachedUUID != null) {
+            return CompletableFuture.completedFuture(cachedUUID);
+        }
+
+        // Buscar no banco de dados
+        return CompletableFuture.supplyAsync(() -> {
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(
+                         "SELECT uuid, name FROM players WHERE id = ?")) {
+                stmt.setInt(1, playerId);
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    UUID uuid = UUID.fromString(rs.getString("uuid"));
+                    String name = rs.getString("name");
+                    
+                    // Atualizar cache
+                    idToUuidCache.put(playerId, uuid);
+                    uuidToIdCache.put(uuid, playerId);
+                    uuidToNameCache.put(uuid, name);
+                    nameToUuidCache.put(name.toLowerCase(), uuid);
+                    
+                    return uuid;
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            return null;
+        });
+    }
+
+    /**
+     * Busca o ID de um jogador pelo UUID
+     * @param uuid UUID do jogador
+     * @return CompletableFuture com o ID ou null se não encontrado
+     */
+    public CompletableFuture<Integer> getPlayerId(UUID uuid) {
+        // Verificar cache primeiro
+        Integer cachedId = uuidToIdCache.get(uuid);
+        if (cachedId != null) {
+            return CompletableFuture.completedFuture(cachedId);
+        }
+
+        // Buscar no banco de dados
+        return CompletableFuture.supplyAsync(() -> {
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(
+                         "SELECT id, name FROM players WHERE uuid = ?")) {
+                stmt.setString(1, uuid.toString());
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    int playerId = rs.getInt("id");
+                    String name = rs.getString("name");
+                    
+                    // Atualizar cache
+                    uuidToIdCache.put(uuid, playerId);
+                    idToUuidCache.put(playerId, uuid);
+                    uuidToNameCache.put(uuid, name);
+                    nameToUuidCache.put(name.toLowerCase(), uuid);
+                    
+                    return playerId;
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -132,14 +216,20 @@ public class PlayerDataManager {
         return CompletableFuture.supplyAsync(() -> {
             try (Connection conn = databaseManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(
-                         "SELECT name FROM players WHERE uuid = ?")) {
+                         "SELECT name, id FROM players WHERE uuid = ?")) {
                 stmt.setString(1, uuid.toString());
                 ResultSet rs = stmt.executeQuery();
 
                 if (rs.next()) {
                     String name = rs.getString("name");
+                    int playerId = rs.getInt("id");
+                    
                     // Atualizar cache
                     uuidToNameCache.put(uuid, name);
+                    uuidToIdCache.put(uuid, playerId);
+                    idToUuidCache.put(playerId, uuid);
+                    nameToUuidCache.put(name.toLowerCase(), uuid);
+                    
                     return name;
                 }
             } catch (SQLException e) {
@@ -174,5 +264,114 @@ public class PlayerDataManager {
 
             return null;
         });
+    }
+
+    /**
+     * Busca informações completas de um jogador pelo ID
+     * @param playerId ID do jogador
+     * @return CompletableFuture com PlayerInfo ou null se não encontrado
+     */
+    public CompletableFuture<PlayerInfo> getPlayerInfoById(int playerId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(
+                         "SELECT id, uuid, name, first_join, last_join FROM players WHERE id = ?")) {
+                stmt.setInt(1, playerId);
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    UUID uuid = UUID.fromString(rs.getString("uuid"));
+                    String name = rs.getString("name");
+                    long firstJoin = rs.getLong("first_join");
+                    long lastJoin = rs.getLong("last_join");
+                    
+                    // Atualizar cache
+                    uuidToIdCache.put(uuid, playerId);
+                    idToUuidCache.put(playerId, uuid);
+                    uuidToNameCache.put(uuid, name);
+                    nameToUuidCache.put(name.toLowerCase(), uuid);
+                    
+                    return new PlayerInfo(playerId, uuid, name, firstJoin, lastJoin);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            return null;
+        });
+    }
+
+    /**
+     * Busca informações completas de um jogador pelo UUID
+     * @param uuid UUID do jogador
+     * @return CompletableFuture com PlayerInfo ou null se não encontrado
+     */
+    public CompletableFuture<PlayerInfo> getPlayerInfo(UUID uuid) {
+        return CompletableFuture.supplyAsync(() -> {
+            try (Connection conn = databaseManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(
+                         "SELECT id, uuid, name, first_join, last_join FROM players WHERE uuid = ?")) {
+                stmt.setString(1, uuid.toString());
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    int playerId = rs.getInt("id");
+                    String name = rs.getString("name");
+                    long firstJoin = rs.getLong("first_join");
+                    long lastJoin = rs.getLong("last_join");
+                    
+                    // Atualizar cache
+                    uuidToIdCache.put(uuid, playerId);
+                    idToUuidCache.put(playerId, uuid);
+                    uuidToNameCache.put(uuid, name);
+                    nameToUuidCache.put(name.toLowerCase(), uuid);
+                    
+                    return new PlayerInfo(playerId, uuid, name, firstJoin, lastJoin);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+
+            return null;
+        });
+    }
+
+    /**
+     * Classe para armazenar informações completas do jogador
+     */
+    public static class PlayerInfo {
+        private final int id;
+        private final UUID uuid;
+        private final String name;
+        private final long firstJoin;
+        private final long lastJoin;
+
+        public PlayerInfo(int id, UUID uuid, String name, long firstJoin, long lastJoin) {
+            this.id = id;
+            this.uuid = uuid;
+            this.name = name;
+            this.firstJoin = firstJoin;
+            this.lastJoin = lastJoin;
+        }
+
+        public int getId() {
+            return id;
+        }
+
+        public UUID getUuid() {
+            return uuid;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public long getFirstJoin() {
+            return firstJoin;
+        }
+
+        public long getLastJoin() {
+            return lastJoin;
+        }
     }
 }

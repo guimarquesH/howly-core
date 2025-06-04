@@ -1,17 +1,16 @@
 package com.gilbertomorales.howlyvelocity.comandos;
 
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
+import com.gilbertomorales.howlyvelocity.utils.PlayerUtils;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
-// Corrigir a importação do HowlyAPI
 import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.managers.GroupManager;
 
 import java.util.List;
-import java.util.Optional;
 
 public class FindCommand implements SimpleCommand {
 
@@ -36,34 +35,53 @@ public class FindCommand implements SimpleCommand {
 
         String[] args = invocation.arguments();
         if (args.length == 0) {
-            sender.sendMessage(Component.text("§cUtilize: /find <jogador>"));
+            sender.sendMessage(Component.text("§cUtilize: /find <jogador/#id>"));
             return;
         }
 
-        Optional<Player> targetOptional = server.getPlayer(args[0]);
-        if (targetOptional.isEmpty()) {
-            sender.sendMessage(Component.text("§cJogador não encontrado ou offline."));
-            return;
-        }
+        String targetIdentifier = args[0];
+        sender.sendMessage(Component.text("§eBuscando usuário..."));
 
-        Player target = targetOptional.get();
-        String serverName = target.getCurrentServer()
-                .map(connection -> connection.getServerInfo().getName())
-                .orElse("Lobby");
+        PlayerUtils.findPlayer(server, targetIdentifier).thenAccept(result -> {
+            if (result != null) {
+                if (result.isOnline()) {
+                    Player target = result.getOnlinePlayer();
+                    String serverName = target.getCurrentServer()
+                            .map(connection -> connection.getServerInfo().getName())
+                            .orElse("Lobby");
 
-        GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
-        String formattedName = groupManager.getFormattedPlayerName(target);
+                    GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
+                    String formattedName = groupManager.getFormattedPlayerName(target);
 
-        sender.sendMessage(Component.text("§eUsuário " + formattedName + " §eestá conectado em §n" + serverName + "§e."));
+                    sender.sendMessage(Component.text("§eUsuário " + formattedName + " §eestá conectado em §n" + serverName + "§e."));
+                } else {
+                    sender.sendMessage(Component.text("§cO usuário §f" + result.getName() + " §cestá offline."));
+                }
+            } else {
+                sender.sendMessage(Component.text("§cUsuário não encontrado."));
+            }
+        }).exceptionally(ex -> {
+            sender.sendMessage(Component.text("§cErro ao buscar usuário: " + ex.getMessage()));
+            ex.printStackTrace();
+            return null;
+        });
     }
 
     @Override
     public List<String> suggest(Invocation invocation) {
         if (invocation.arguments().length == 1) {
-            return server.getAllPlayers().stream()
+            String arg = invocation.arguments()[0].toLowerCase();
+            List<String> suggestions = server.getAllPlayers().stream()
                     .map(Player::getUsername)
-                    .filter(name -> name.toLowerCase().startsWith(invocation.arguments()[0].toLowerCase()))
+                    .filter(name -> name.toLowerCase().startsWith(arg))
                     .toList();
+            
+            // Adicionar sugestões de ID se começar com #
+            if (arg.startsWith("#")) {
+                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
+            }
+            
+            return suggestions;
         }
         return List.of();
     }

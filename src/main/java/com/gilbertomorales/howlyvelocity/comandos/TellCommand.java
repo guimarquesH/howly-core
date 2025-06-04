@@ -4,6 +4,7 @@ import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.managers.IgnoreManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
 import com.gilbertomorales.howlyvelocity.utils.ChatUtils;
+import com.gilbertomorales.howlyvelocity.utils.PlayerUtils;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
@@ -38,46 +39,55 @@ public class TellCommand implements SimpleCommand {
         }
 
         if (args.length < 2) {
-            sender.sendMessage(Component.text("§cUtilize: /tell <jogador> <mensagem>").color(TextColor.color(255, 85, 85)));
+            sender.sendMessage(Component.text("§cUtilize: /tell <jogador/#id> <mensagem>").color(TextColor.color(255, 85, 85)));
             return;
         }
 
-        String targetName = args[0];
-        Optional<Player> targetOptional = server.getPlayer(targetName);
-
-        if (targetOptional.isEmpty()) {
-            sender.sendMessage(Component.text("Jogador não encontrado ou offline.").color(TextColor.color(255, 85, 85)));
-            return;
-        }
-
-        Player target = targetOptional.get();
-
-        // Não permitir enviar mensagem para si mesmo
-        if (target.equals(sender)) {
-            sender.sendMessage(Component.text("Você não pode enviar mensagens para si mesmo.").color(TextColor.color(255, 85, 85)));
-            return;
-        }
-
-        // Verificar se o destinatário está ignorando o remetente
-        if (ignoreManager.isIgnoring(target.getUniqueId(), sender.getUniqueId())) {
-            sender.sendMessage(Component.text("Este jogador está te ignorando.").color(TextColor.color(255, 85, 85)));
-            return;
-        }
-
-        // Construir a mensagem
+        String targetIdentifier = args[0];
         String rawMessage = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
-        String message = ChatUtils.applyColors(rawMessage, sender);
 
-        // Criar componentes formatados para remetente e destinatário
-        Component senderMessage = createTellMessage("para", target, sender, message);
-        Component targetMessage = createTellMessage("de", sender, target, message);
+        sender.sendMessage(Component.text("§eBuscando usuário..."));
 
-        // Enviar mensagens
-        sender.sendMessage(senderMessage);
-        target.sendMessage(targetMessage);
+        PlayerUtils.findPlayer(server, targetIdentifier).thenAccept(result -> {
+            if (result != null) {
+                if (result.isOnline()) {
+                    Player target = result.getOnlinePlayer();
 
-        // Salvar para /r
-        lastReplies.put(target.getUniqueId(), sender.getUniqueId());
+                    // Não permitir enviar mensagem para si mesmo
+                    if (target.equals(sender)) {
+                        sender.sendMessage(Component.text("Você não pode enviar mensagens para si mesmo.").color(TextColor.color(255, 85, 85)));
+                        return;
+                    }
+
+                    // Verificar se o destinatário está ignorando o remetente
+                    if (ignoreManager.isIgnoring(target.getUniqueId(), sender.getUniqueId())) {
+                        sender.sendMessage(Component.text("Este jogador está te ignorando.").color(TextColor.color(255, 85, 85)));
+                        return;
+                    }
+
+                    String message = ChatUtils.applyColors(rawMessage, sender);
+
+                    // Criar componentes formatados para remetente e destinatário
+                    Component senderMessage = createTellMessage("para", target, sender, message);
+                    Component targetMessage = createTellMessage("de", sender, target, message);
+
+                    // Enviar mensagens
+                    sender.sendMessage(senderMessage);
+                    target.sendMessage(targetMessage);
+
+                    // Salvar para /r
+                    lastReplies.put(target.getUniqueId(), sender.getUniqueId());
+                } else {
+                    sender.sendMessage(Component.text("O usuário precisa estar online para receber mensagens.").color(TextColor.color(255, 85, 85)));
+                }
+            } else {
+                sender.sendMessage(Component.text("Jogador não encontrado.").color(TextColor.color(255, 85, 85)));
+            }
+        }).exceptionally(ex -> {
+            sender.sendMessage(Component.text("Erro ao buscar usuário: " + ex.getMessage()).color(TextColor.color(255, 85, 85)));
+            ex.printStackTrace();
+            return null;
+        });
     }
 
     /**
@@ -143,10 +153,17 @@ public class TellCommand implements SimpleCommand {
     public List<String> suggest(Invocation invocation) {
         if (invocation.arguments().length == 1) {
             String arg = invocation.arguments()[0].toLowerCase();
-            return server.getAllPlayers().stream()
+            List<String> suggestions = server.getAllPlayers().stream()
                     .map(Player::getUsername)
                     .filter(name -> name.toLowerCase().startsWith(arg))
                     .toList();
+            
+            // Adicionar sugestões de ID se começar com #
+            if (arg.startsWith("#")) {
+                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
+            }
+            
+            return suggestions;
         }
         return List.of();
     }
