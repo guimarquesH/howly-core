@@ -121,17 +121,10 @@ public class BanCommand implements SimpleCommand {
 
         if (args.length == 1) {
             String partialName = args[0].toLowerCase();
-            List<String> suggestions = server.getAllPlayers().stream()
+            return server.getAllPlayers().stream()
                     .map(Player::getUsername)
                     .filter(name -> name.toLowerCase().startsWith(partialName))
                     .collect(Collectors.toList());
-            
-            // Adicionar sugestões de ID se começar com #
-            if (partialName.startsWith("#")) {
-                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
-            }
-            
-            return suggestions;
         } else if (args.length == 2) {
             String partialTime = args[1].toLowerCase();
             return List.of("1h", "1d", "7d", "30d", "permanent").stream()

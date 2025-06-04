@@ -138,6 +138,61 @@ public class TagManager {
     }
 
     /**
+     * Retorna apenas a tag do jogador offline (sem espaços)
+     */
+    public String getPlayerTagByUUID(UUID playerUuid) {
+        String selectedTag = playerTags.get(playerUuid);
+        if (selectedTag != null && availableTags.containsKey(selectedTag)) {
+            TagInfo tagInfo = availableTags.get(selectedTag);
+
+            // Para jogador offline, não podemos verificar permissão
+            // Então apenas retornamos a tag se ela existir
+            return tagInfo.display;
+        }
+        // Retornar string vazia se não tiver tag
+        return "";
+    }
+
+    /**
+     * Retorna a tag formatada com espaço APENAS se o jogador offline tiver tag
+     */
+    public String getFormattedPlayerTagByUUID(UUID playerUuid) {
+        String tag = getPlayerTagByUUID(playerUuid);
+        return tag.isEmpty() ? "" : tag + " ";
+    }
+
+    /**
+     * Retorna o nome completo do jogador offline (tag + nome) formatado corretamente
+     */
+    public String getFormattedPlayerNameByUUID(UUID playerUuid, String playerName) {
+        String tag = getPlayerTagByUUID(playerUuid);
+        String nameColor = getPlayerNameColorByUUID(playerUuid);
+
+        if (tag.isEmpty()) {
+            // Sem tag: apenas cor + nome (sem espaços extras)
+            return nameColor + playerName;
+        } else {
+            // Com tag: tag + espaço + cor + nome
+            return tag + " " + nameColor + playerName;
+        }
+    }
+
+    /**
+     * Obtém a cor do nome para jogador offline
+     */
+    public String getPlayerNameColorByUUID(UUID playerUuid) {
+        // Verificar se o jogador tem uma tag selecionada
+        String selectedTag = playerTags.get(playerUuid);
+        if (selectedTag != null && availableTags.containsKey(selectedTag)) {
+            TagInfo tagInfo = availableTags.get(selectedTag);
+            return tagInfo.nameColor;
+        }
+
+        // Cor padrão se não tiver tag
+        return "§7";
+    }
+
+    /**
      * Retorna a tag formatada com espaço APENAS se o jogador tiver tag
      */
     public String getFormattedPlayerTag(Player player) {

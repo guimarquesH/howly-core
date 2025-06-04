@@ -138,17 +138,13 @@ public class InfoCommand implements SimpleCommand {
 
         // Obter informações do grupo
         GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
-        String groupName = "Membro";
-        if (groupManager.isLuckPermsAvailable()) {
-            GroupManager.GroupInfo groupInfo = groupManager.getPlayerGroupInfo(target);
-            groupName = groupInfo.getDisplayName();
-        }
+        String formattedGroups = groupManager.getFormattedPlayerGroups(target);
 
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§eInformações:"));
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§fUsuário: §7" + targetName));
-        sender.sendMessage(Component.text("§fGrupo: §7" + groupName));
+        sender.sendMessage(Component.text("§fGrupo(s): " + formattedGroups));
         sender.sendMessage(Component.text("§fID: §7#" + playerId));
         sender.sendMessage(Component.text("§fUUID: §7" + target.getUniqueId().toString()));
         sender.sendMessage(Component.text(" "));
@@ -165,6 +161,7 @@ public class InfoCommand implements SimpleCommand {
             }
         }
 
+        // Buscar medalha do jogador
         String medal = medalManager.getPlayerMedal(target);
         if (medal.isEmpty()) {
             sender.sendMessage(Component.text("§fMedalha: §7Nenhuma"));
@@ -235,17 +232,13 @@ public class InfoCommand implements SimpleCommand {
 
         // Obter informações do grupo
         GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
-        String groupName = "Membro";
-        if (groupManager.isLuckPermsAvailable()) {
-            GroupManager.GroupInfo groupInfo = groupManager.getPlayerGroupInfo(target);
-            groupName = groupInfo.getDisplayName();
-        }
+        String formattedGroups = groupManager.getFormattedPlayerGroups(target);
 
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§eInformações:"));
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§fUsuário: §7" + targetName));
-        sender.sendMessage(Component.text("§fGrupo: §7" + groupName));
+        sender.sendMessage(Component.text("§fGrupo(s): " + formattedGroups));
         sender.sendMessage(Component.text("§fID: §7Carregando..."));
         sender.sendMessage(Component.text("§fUUID: §7" + target.getUniqueId().toString()));
         sender.sendMessage(Component.text(" "));
@@ -262,6 +255,7 @@ public class InfoCommand implements SimpleCommand {
             }
         }
 
+        // Buscar medalha do jogador
         String medal = medalManager.getPlayerMedal(target);
         if (medal.isEmpty()) {
             sender.sendMessage(Component.text("§fMedalha: §7Nenhuma"));
@@ -327,13 +321,14 @@ public class InfoCommand implements SimpleCommand {
 
     private void showOfflinePlayerInfo(CommandSource sender, PlayerDataManager.PlayerInfo playerInfo) {
         // Obter informações do grupo para jogador offline
-        String groupName = "Membro"; // Padrão para offline
+        GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
+        String formattedGroups = groupManager.getFormattedPlayerGroupsByUUID(playerInfo.getUuid());
 
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§eInformações:"));
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§fUsuário: §7" + playerInfo.getName()));
-        sender.sendMessage(Component.text("§fGrupo: §7" + groupName));
+        sender.sendMessage(Component.text("§fGrupo(s): " + formattedGroups));
         sender.sendMessage(Component.text("§fID: §7#" + playerInfo.getId()));
         sender.sendMessage(Component.text("§fUUID: §7" + playerInfo.getUuid().toString()));
         sender.sendMessage(Component.text(" "));
@@ -350,7 +345,14 @@ public class InfoCommand implements SimpleCommand {
             }
         }
 
-        sender.sendMessage(Component.text("§fMedalha: §7Offline"));
+        // Buscar medalha do jogador offline
+        String medal = medalManager.getPlayerMedalByUUID(playerInfo.getUuid());
+        if (medal.isEmpty()) {
+            sender.sendMessage(Component.text("§fMedalha: §7Nenhuma"));
+        } else {
+            sender.sendMessage(Component.text("§fMedalha: " + medal));
+        }
+
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§fConexão: §cOffline"));
         sender.sendMessage(Component.text("§fVersão: §7Desconhecida"));
@@ -427,18 +429,11 @@ public class InfoCommand implements SimpleCommand {
         if (invocation.arguments().length == 1) {
             String arg = invocation.arguments()[0].toLowerCase();
             
-            // Sugerir jogadores online
-            List<String> suggestions = server.getAllPlayers().stream()
+            // Sugerir apenas jogadores online
+            return server.getAllPlayers().stream()
                     .map(Player::getUsername)
                     .filter(name -> name.toLowerCase().startsWith(arg))
                     .toList();
-            
-            // Se começar com #, sugerir alguns IDs
-            if (arg.startsWith("#")) {
-                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
-            }
-            
-            return suggestions;
         }
         return List.of();
     }

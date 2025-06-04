@@ -71,17 +71,10 @@ public class FindCommand implements SimpleCommand {
     public List<String> suggest(Invocation invocation) {
         if (invocation.arguments().length == 1) {
             String arg = invocation.arguments()[0].toLowerCase();
-            List<String> suggestions = server.getAllPlayers().stream()
+            return server.getAllPlayers().stream()
                     .map(Player::getUsername)
                     .filter(name -> name.toLowerCase().startsWith(arg))
                     .toList();
-            
-            // Adicionar sugestões de ID se começar com #
-            if (arg.startsWith("#")) {
-                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
-            }
-            
-            return suggestions;
         }
         return List.of();
     }

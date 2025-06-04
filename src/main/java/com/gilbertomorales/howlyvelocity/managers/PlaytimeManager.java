@@ -17,9 +17,40 @@ public class PlaytimeManager {
     
     // Cache para sessões ativas (UUID -> timestamp de início da sessão)
     private final Map<UUID, Long> activeSessions = new ConcurrentHashMap<>();
+    // Cache para tempo total (UUID -> tempo total em milissegundos)
+    private final Map<UUID, Long> totalTimeCache = new ConcurrentHashMap<>();
 
     public PlaytimeManager(DatabaseManager databaseManager) {
         this.databaseManager = databaseManager;
+        // Carregar cache de tempo total ao iniciar
+        loadTotalTimeCache();
+    }
+    
+    /**
+     * Carrega o cache de tempo total do banco de dados
+     */
+    private void loadTotalTimeCache() {
+        CompletableFuture.runAsync(() -> {
+            try (Connection conn = databaseManager.getConnection()) {
+                String sql = "SELECT player_uuid, total_time FROM player_playtime";
+                
+                try (PreparedStatement stmt = conn.prepareStatement(sql);
+                     ResultSet rs = stmt.executeQuery()) {
+                    
+                    while (rs.next()) {
+                        try {
+                            UUID playerUuid = UUID.fromString(rs.getString("player_uuid"));
+                            long totalTime = rs.getLong("total_time");
+                            totalTimeCache.put(playerUuid, totalTime);
+                        } catch (IllegalArgumentException e) {
+                            // Ignorar UUIDs inválidos
+                        }
+                    }
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     /**
@@ -68,6 +99,9 @@ public class PlaytimeManager {
                             insertStmt.setLong(2, currentTime);
                             insertStmt.setLong(3, currentTime);
                             insertStmt.executeUpdate();
+                            
+                            // Inicializar o cache
+                            totalTimeCache.put(playerUuid, 0L);
                         }
                     }
                 }
@@ -87,6 +121,10 @@ public class PlaytimeManager {
         }
         
         long sessionDuration = System.currentTimeMillis() - sessionStart;
+        
+        // Atualizar o cache
+        Long currentTotal = totalTimeCache.getOrDefault(playerUuid, 0L);
+        totalTimeCache.put(playerUuid, currentTotal + sessionDuration);
         
         // Atualizar tempo total no banco de dados
         CompletableFuture.runAsync(() -> {
@@ -114,6 +152,20 @@ public class PlaytimeManager {
      */
     public CompletableFuture<Long> getPlayerPlaytime(UUID playerUuid) {
         return CompletableFuture.supplyAsync(() -> {
+            // Verificar primeiro no cache
+            Long cachedTime = totalTimeCache.get(playerUuid);
+            Long sessionStart = activeSessions.get(playerUuid);
+            
+            if (cachedTime != null) {
+                // Se há uma sessão ativa, adicionar o tempo da sessão atual
+                if (sessionStart != null) {
+                    long currentSessionTime = System.currentTimeMillis() - sessionStart;
+                    return cachedTime + currentSessionTime;
+                }
+                return cachedTime;
+            }
+            
+            // Se não estiver no cache, buscar do banco de dados
             try (Connection conn = databaseManager.getConnection()) {
                 String sql = "SELECT total_time, session_start FROM player_playtime WHERE player_uuid = ?";
                 
@@ -123,12 +175,15 @@ public class PlaytimeManager {
                     try (ResultSet rs = stmt.executeQuery()) {
                         if (rs.next()) {
                             long totalTime = rs.getLong("total_time");
-                            Long sessionStart = rs.getObject("session_start", Long.class);
+                            Long dbSessionStart = rs.getObject("session_start", Long.class);
+                            
+                            // Atualizar o cache
+                            totalTimeCache.put(playerUuid, totalTime);
                             
                             // Se há uma sessão ativa, adicionar o tempo da sessão atual
                             if (sessionStart != null) {
                                 long currentSessionTime = System.currentTimeMillis() - sessionStart;
-                                totalTime += currentSessionTime;
+                                return totalTime + currentSessionTime;
                             }
                             
                             return totalTime;
@@ -142,6 +197,9 @@ public class PlaytimeManager {
                     stmt.setString(1, playerUuid.toString());
                     stmt.setLong(2, System.currentTimeMillis());
                     stmt.executeUpdate();
+                    
+                    // Atualizar o cache
+                    totalTimeCache.put(playerUuid, 0L);
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -157,26 +215,47 @@ public class PlaytimeManager {
     public CompletableFuture<List<PlaytimeEntry>> getTopPlaytime() {
         return CompletableFuture.supplyAsync(() -> {
             List<PlaytimeEntry> topList = new ArrayList<>();
+            Map<UUID, Long> currentTimes = new HashMap<>();
+            
+            // Primeiro, copiar todos os tempos do cache
+            for (Map.Entry<UUID, Long> entry : totalTimeCache.entrySet()) {
+                UUID playerUuid = entry.getKey();
+                long totalTime = entry.getValue();
+                
+                // Adicionar tempo da sessão atual se estiver online
+                Long sessionStart = activeSessions.get(playerUuid);
+                if (sessionStart != null) {
+                    long currentSessionTime = System.currentTimeMillis() - sessionStart;
+                    totalTime += currentSessionTime;
+                }
+                
+                currentTimes.put(playerUuid, totalTime);
+            }
             
             try (Connection conn = databaseManager.getConnection()) {
+                // Buscar nomes dos jogadores
                 String sql = "SELECT pt.player_uuid, pt.total_time, pt.session_start, p.name " +
                            "FROM player_playtime pt " +
                            "JOIN players p ON pt.player_uuid = p.uuid " +
                            "ORDER BY pt.total_time DESC " +
-                           "LIMIT 10";
+                           "LIMIT 20"; // Buscar mais que 10 para caso alguns não estejam no cache
                 
                 try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                     try (ResultSet rs = stmt.executeQuery()) {
                         while (rs.next()) {
                             UUID playerUuid = UUID.fromString(rs.getString("player_uuid"));
-                            long totalTime = rs.getLong("total_time");
-                            Long sessionStart = rs.getObject("session_start", Long.class);
                             String playerName = rs.getString("name");
                             
-                            // Se há uma sessão ativa, adicionar o tempo da sessão atual
-                            if (sessionStart != null) {
-                                long currentSessionTime = System.currentTimeMillis() - sessionStart;
-                                totalTime += currentSessionTime;
+                            // Usar o tempo do cache se disponível, senão usar do banco
+                            long totalTime = currentTimes.getOrDefault(playerUuid, rs.getLong("total_time"));
+                            
+                            // Adicionar tempo da sessão atual se não estiver no cache mas estiver online
+                            if (!currentTimes.containsKey(playerUuid)) {
+                                Long sessionStart = activeSessions.get(playerUuid);
+                                if (sessionStart != null) {
+                                    long currentSessionTime = System.currentTimeMillis() - sessionStart;
+                                    totalTime += currentSessionTime;
+                                }
                             }
                             
                             topList.add(new PlaytimeEntry(playerUuid, playerName, totalTime));
@@ -190,6 +269,11 @@ public class PlaytimeManager {
             // Reordenar considerando sessões ativas
             topList.sort((a, b) -> Long.compare(b.getPlaytime(), a.getPlaytime()));
             
+            // Limitar a 10 resultados
+            if (topList.size() > 10) {
+                topList = topList.subList(0, 10);
+            }
+            
             return topList;
         });
     }
@@ -199,6 +283,9 @@ public class PlaytimeManager {
      */
     public CompletableFuture<Boolean> resetPlayerPlaytime(UUID playerUuid) {
         return CompletableFuture.supplyAsync(() -> {
+            // Atualizar o cache
+            totalTimeCache.put(playerUuid, 0L);
+            
             try (Connection conn = databaseManager.getConnection()) {
                 String sql = "UPDATE player_playtime SET total_time = 0, last_updated = ? WHERE player_uuid = ?";
                 
@@ -218,9 +305,6 @@ public class PlaytimeManager {
                             insertStmt.executeUpdate();
                         }
                     }
-                    
-                    // Remover qualquer sessão ativa do cache
-                    activeSessions.remove(playerUuid);
                     
                     return true;
                 }

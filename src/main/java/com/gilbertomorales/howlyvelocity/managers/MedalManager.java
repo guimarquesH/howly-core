@@ -138,10 +138,33 @@ public class MedalManager {
     }
 
     /**
+     * Retorna apenas a medalha do jogador offline (sem espaços)
+     */
+    public String getPlayerMedalByUUID(UUID playerUuid) {
+        String selectedMedal = playerMedals.get(playerUuid);
+        if (selectedMedal != null && availableMedals.containsKey(selectedMedal)) {
+            MedalInfo medalInfo = availableMedals.get(selectedMedal);
+
+            // Para jogador offline, não podemos verificar permissão
+            // Então apenas retornamos a medalha se ela existir
+            return medalInfo.color + medalInfo.symbol;
+        }
+        return "";
+    }
+
+    /**
      * Retorna a medalha formatada com espaço APENAS se o jogador tiver medalha
      */
     public String getFormattedPlayerMedal(Player player) {
         String medal = getPlayerMedal(player);
+        return medal.isEmpty() ? "" : medal + " ";
+    }
+
+    /**
+     * Retorna a medalha formatada com espaço APENAS se o jogador tiver medalha (para offline)
+     */
+    public String getFormattedPlayerMedalByUUID(UUID playerUuid) {
+        String medal = getPlayerMedalByUUID(playerUuid);
         return medal.isEmpty() ? "" : medal + " ";
     }
 

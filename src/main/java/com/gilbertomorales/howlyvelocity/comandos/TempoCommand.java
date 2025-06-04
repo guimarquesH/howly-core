@@ -98,7 +98,9 @@ public class TempoCommand implements SimpleCommand {
                         String formattedName = groupManager.getFormattedPlayerName(result.getOnlinePlayer());
                         sender.sendMessage(Component.text("§eTempo online de " + formattedName + "§e: §f" + formattedTime));
                     } else {
-                        sender.sendMessage(Component.text("§eTempo online de §f" + playerName + "§e: §f" + formattedTime));
+                        // Usar o método para jogadores offline
+                        String formattedName = groupManager.getFormattedPlayerNameByUUID(result.getUUID(), playerName);
+                        sender.sendMessage(Component.text("§eTempo online de " + formattedName + "§e: §f" + formattedTime));
                     }
                 }).exceptionally(ex -> {
                     sender.sendMessage(Component.text("§cErro ao buscar tempo online: " + ex.getMessage()));
@@ -134,26 +136,21 @@ public class TempoCommand implements SimpleCommand {
                 
                 String position = "§7" + (i + 1) + "º";
                 
-                // Obter o grupo do jogador
-                String groupPrefix = "";
-                String nameColor = "§f";
+                // Obter o grupo do jogador (online ou offline)
+                String formattedName;
                 
                 // Verificar se o jogador está online para obter o grupo
                 Optional<Player> onlinePlayer = server.getPlayer(entry.getPlayerUuid());
-                if (onlinePlayer.isPresent() && groupManager.isLuckPermsAvailable()) {
-                    GroupManager.GroupInfo groupInfo = groupManager.getPlayerGroupInfo(onlinePlayer.get());
-                    groupPrefix = groupManager.getPlayerGroupPrefix(onlinePlayer.get());
-                    nameColor = groupManager.getPlayerGroupNameColor(onlinePlayer.get());
-                    
-                    if (!groupPrefix.isEmpty()) {
-                        groupPrefix += " ";
-                    }
+                if (onlinePlayer.isPresent()) {
+                    formattedName = groupManager.getFormattedPlayerName(onlinePlayer.get());
+                } else {
+                    // Jogador offline - usar os novos métodos
+                    formattedName = groupManager.getFormattedPlayerNameByUUID(entry.getPlayerUuid(), entry.getPlayerName());
                 }
                 
-                String playerName = nameColor + entry.getPlayerName();
                 String time = "§a" + formattedTime;
                 
-                sender.sendMessage(Component.text(position + " " + groupPrefix + playerName + " §7- " + time));
+                sender.sendMessage(Component.text(position + " " + formattedName + " §7- " + time));
             }
             
             sender.sendMessage(Component.text(" "));
@@ -214,25 +211,13 @@ public class TempoCommand implements SimpleCommand {
                     .filter(name -> name.toLowerCase().startsWith(arg))
                     .collect(Collectors.toList()));
             
-            // Adicionar sugestões de ID se começar com #
-            if (arg.startsWith("#")) {
-                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
-            }
-            
             return suggestions;
         } else if (args.length == 2 && args[0].equalsIgnoreCase("resetar")) {
             String arg = args[1].toLowerCase();
-            List<String> suggestions = server.getAllPlayers().stream()
+            return server.getAllPlayers().stream()
                     .map(Player::getUsername)
                     .filter(name -> name.toLowerCase().startsWith(arg))
                     .collect(Collectors.toList());
-            
-            // Adicionar sugestões de ID se começar com #
-            if (arg.startsWith("#")) {
-                suggestions.addAll(List.of("#1", "#2", "#3", "#4", "#5"));
-            }
-            
-            return suggestions;
         }
         
         return List.of();

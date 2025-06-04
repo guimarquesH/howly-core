@@ -10,6 +10,7 @@ import net.luckperms.api.node.NodeType;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class GroupManager {
 
@@ -71,15 +72,178 @@ public class GroupManager {
     }
 
     /**
-     * Obtém informações do grupo de um jogador
+     * Obtém o grupo principal de um jogador pelo UUID
      */
-    public GroupInfo getPlayerGroupInfo(Player player) {
-        String primaryGroup = getPlayerPrimaryGroup(player);
-        return groupInfoMap.getOrDefault(primaryGroup.toLowerCase(), groupInfoMap.get("default"));
+    public String getPlayerPrimaryGroupByUUID(UUID playerUuid) {
+        if (luckPerms == null) {
+            return "default";
+        }
+
+        try {
+            User user = luckPerms.getUserManager().loadUser(playerUuid).join();
+            if (user != null) {
+                return user.getPrimaryGroup();
+            }
+        } catch (Exception e) {
+            // Ignorar erros
+        }
+
+        return "default";
     }
 
     /**
-     * Obtém o prefixo do grupo do jogador
+     * Obtém todos os grupos de um jogador
+     */
+    public List<String> getPlayerGroups(Player player) {
+        if (luckPerms == null) {
+            return Collections.singletonList("default");
+        }
+
+        try {
+            User user = luckPerms.getUserManager().getUser(player.getUniqueId());
+            if (user != null) {
+                return user.getNodes(NodeType.INHERITANCE).stream()
+                        .map(n -> n.getGroupName().toLowerCase())
+                        .filter(groupInfoMap::containsKey)
+                        .collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            // Ignorar erros
+        }
+
+        return Collections.singletonList("default");
+    }
+
+    /**
+     * Obtém todos os grupos de um jogador pelo UUID
+     */
+    public List<String> getPlayerGroupsByUUID(UUID playerUuid) {
+        if (luckPerms == null) {
+            return Collections.singletonList("default");
+        }
+
+        try {
+            User user = luckPerms.getUserManager().loadUser(playerUuid).join();
+            if (user != null) {
+                return user.getNodes(NodeType.INHERITANCE).stream()
+                        .map(n -> n.getGroupName().toLowerCase())
+                        .filter(groupInfoMap::containsKey)
+                        .collect(Collectors.toList());
+            }
+        } catch (Exception e) {
+            // Ignorar erros
+        }
+
+        return Collections.singletonList("default");
+    }
+
+    /**
+     * Obtém todos os grupos de um jogador ordenados por prioridade (maior para menor)
+     */
+    public List<String> getPlayerGroupsSorted(Player player) {
+        List<String> groups = getPlayerGroups(player);
+        return sortGroupsByPriority(groups);
+    }
+
+    /**
+     * Obtém todos os grupos de um jogador pelo UUID ordenados por prioridade (maior para menor)
+     */
+    public List<String> getPlayerGroupsSortedByUUID(UUID playerUuid) {
+        List<String> groups = getPlayerGroupsByUUID(playerUuid);
+        return sortGroupsByPriority(groups);
+    }
+
+    /**
+     * Obtém o grupo de maior prioridade do jogador
+     */
+    public String getPlayerHighestPriorityGroup(Player player) {
+        List<String> sortedGroups = getPlayerGroupsSorted(player);
+        return sortedGroups.isEmpty() ? "default" : sortedGroups.get(0);
+    }
+
+    /**
+     * Obtém o grupo de maior prioridade do jogador pelo UUID
+     */
+    public String getPlayerHighestPriorityGroupByUUID(UUID playerUuid) {
+        List<String> sortedGroups = getPlayerGroupsSortedByUUID(playerUuid);
+        return sortedGroups.isEmpty() ? "default" : sortedGroups.get(0);
+    }
+
+    /**
+     * Ordena uma lista de grupos por prioridade (maior para menor)
+     */
+    private List<String> sortGroupsByPriority(List<String> groups) {
+        return groups.stream()
+                .sorted((g1, g2) -> {
+                    int p1 = groupInfoMap.getOrDefault(g1, groupInfoMap.get("default")).getPriority();
+                    int p2 = groupInfoMap.getOrDefault(g2, groupInfoMap.get("default")).getPriority();
+                    return Integer.compare(p2, p1); // Ordem decrescente
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Formata todos os grupos do jogador para exibição
+     */
+    public String getFormattedPlayerGroups(Player player) {
+        List<String> sortedGroups = getPlayerGroupsSorted(player);
+        return formatGroupList(sortedGroups);
+    }
+
+    /**
+     * Formata todos os grupos do jogador pelo UUID para exibição
+     */
+    public String getFormattedPlayerGroupsByUUID(UUID playerUuid) {
+        List<String> sortedGroups = getPlayerGroupsSortedByUUID(playerUuid);
+        return formatGroupList(sortedGroups);
+    }
+
+    /**
+     * Formata uma lista de grupos para exibição
+     */
+    private String formatGroupList(List<String> groups) {
+        if (groups.isEmpty() || (groups.size() == 1 && groups.get(0).equals("default"))) {
+            return "§7[Membro]";
+        }
+
+        StringBuilder result = new StringBuilder();
+        boolean first = true;
+
+        for (String groupName : groups) {
+            if (groupName.equals("default")) continue;
+            
+            GroupInfo info = groupInfoMap.get(groupName);
+            if (info == null) continue;
+            
+            if (!first) {
+                result.append("§7, ");
+            }
+            
+            result.append(info.getFormattedPrefix());
+            first = false;
+        }
+
+        return result.toString();
+    }
+
+    /**
+     * Obtém informações do grupo de maior prioridade do jogador
+     */
+    public GroupInfo getPlayerGroupInfo(Player player) {
+        String highestGroup = getPlayerHighestPriorityGroup(player);
+        return groupInfoMap.getOrDefault(highestGroup.toLowerCase(), groupInfoMap.get("default"));
+    }
+
+    /**
+     * Obtém informações do grupo de maior prioridade do jogador offline pelo UUID
+     */
+    public GroupInfo getPlayerGroupInfoByUUID(UUID playerUuid) {
+        String highestGroup = getPlayerHighestPriorityGroupByUUID(playerUuid);
+        return groupInfoMap.getOrDefault(highestGroup.toLowerCase(), groupInfoMap.get("default"));
+    }
+
+    /**
+     * Obtém o prefixo do grupo de maior prioridade do jogador (para chat)
      */
     public String getPlayerGroupPrefix(Player player) {
         GroupInfo groupInfo = getPlayerGroupInfo(player);
@@ -90,7 +254,18 @@ public class GroupManager {
     }
 
     /**
-     * Obtém a cor do nome do jogador baseada no grupo
+     * Obtém o prefixo do grupo de maior prioridade do jogador offline (para chat)
+     */
+    public String getPlayerGroupPrefixByUUID(UUID playerUuid) {
+        GroupInfo groupInfo = getPlayerGroupInfoByUUID(playerUuid);
+        if (groupInfo.getDisplayName().equals("Membro")) {
+            return ""; // Não mostrar prefixo para membros
+        }
+        return groupInfo.getColor() + "[" + groupInfo.getDisplayName() + "]";
+    }
+
+    /**
+     * Obtém a cor do nome do jogador baseada no grupo de maior prioridade
      */
     public String getPlayerGroupNameColor(Player player) {
         GroupInfo groupInfo = getPlayerGroupInfo(player);
@@ -98,7 +273,15 @@ public class GroupManager {
     }
 
     /**
-     * Obtém o nome formatado do jogador com grupo (sem tag)
+     * Obtém a cor do nome do jogador baseada no grupo de maior prioridade (para jogador offline)
+     */
+    public String getPlayerGroupNameColorByUUID(UUID playerUuid) {
+        GroupInfo groupInfo = getPlayerGroupInfoByUUID(playerUuid);
+        return groupInfo.getColor();
+    }
+
+    /**
+     * Obtém o nome formatado do jogador com grupo de maior prioridade (para chat)
      */
     public String getFormattedPlayerName(Player player) {
         String groupPrefix = getPlayerGroupPrefix(player);
@@ -108,6 +291,20 @@ public class GroupManager {
             return nameColor + player.getUsername();
         } else {
             return groupPrefix + " " + nameColor + player.getUsername();
+        }
+    }
+
+    /**
+     * Obtém o nome formatado do jogador offline com grupo de maior prioridade
+     */
+    public String getFormattedPlayerNameByUUID(UUID playerUuid, String playerName) {
+        String groupPrefix = getPlayerGroupPrefixByUUID(playerUuid);
+        String nameColor = getPlayerGroupNameColorByUUID(playerUuid);
+
+        if (groupPrefix.isEmpty()) {
+            return nameColor + playerName;
+        } else {
+            return groupPrefix + " " + nameColor + playerName;
         }
     }
 
@@ -192,24 +389,24 @@ public class GroupManager {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 User user = luckPerms.getUserManager().loadUser(player.getUniqueId()).join();
+                
+                // Remover todos os grupos de herança
+                user.data().clear(n -> n.getType() == NodeType.INHERITANCE);
+                
+                // Adicionar o novo grupo
                 InheritanceNode node = InheritanceNode.builder(groupName.toLowerCase()).build();
-
-                // Verificar se já tem o grupo
-                boolean hasGroup = user.getNodes(NodeType.INHERITANCE).stream()
-                        .anyMatch(n -> n.getGroupName().equalsIgnoreCase(groupName));
-
-                if (!hasGroup) {
-                    // Remover todos os grupos de herança
-                    user.data().clear(n -> n instanceof InheritanceNode);
-                    // Adicionar o novo grupo
-                    user.data().add(node);
-                    luckPerms.getUserManager().saveUser(user);
-                    return true;
-                }
+                user.data().add(node);
+                
+                // Definir como grupo primário
+                user.setPrimaryGroup(groupName.toLowerCase());
+                
+                // Salvar alterações
+                luckPerms.getUserManager().saveUser(user);
+                return true;
             } catch (Exception e) {
                 e.printStackTrace();
+                return false;
             }
-            return false;
         });
     }
 
@@ -229,7 +426,7 @@ public class GroupManager {
     }
 
     /**
-     * Obtém a prioridade do grupo do jogador
+     * Obtém a prioridade do grupo de maior peso do jogador
      */
     public int getPlayerGroupPriority(Player player) {
         GroupInfo groupInfo = getPlayerGroupInfo(player);

@@ -77,10 +77,43 @@ public class ChatManager {
     }
 
     private String formatMessage(Player sender, String message) {
+        // Obter o GroupManager
+        GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
+        
+        // Obter medalha formatada
         String medal = medalManager.getFormattedPlayerMedal(sender);
+        
+        // Obter tag do jogador
         String tag = tagManager.getPlayerTag(sender);
-        String nameColor = tagManager.getPlayerNameColor(sender);
+        
+        // Obter o grupo de maior prioridade e sua cor para o nome
+        String groupPrefix = groupManager.getPlayerGroupPrefix(sender);
+        String nameColor = groupManager.getPlayerGroupNameColor(sender);
 
-        return medal + tag + " " + nameColor + sender.getUsername() + "§7: §f" + message;
+        // Formatação: [Medalha][Tag] [Grupo] NomeColorido: mensagem
+        StringBuilder formattedMessage = new StringBuilder();
+        
+        // Adicionar medalha se existir
+        if (!medal.isEmpty()) {
+            formattedMessage.append(medal);
+        }
+        
+        // Adicionar tag se existir
+        if (!tag.isEmpty()) {
+            formattedMessage.append(tag).append(" ");
+        }
+        
+        // Adicionar grupo se existir
+        if (!groupPrefix.isEmpty()) {
+            formattedMessage.append(groupPrefix).append(" ");
+        }
+        
+        // Adicionar nome com cor do grupo de maior prioridade
+        formattedMessage.append(nameColor).append(sender.getUsername());
+        
+        // Adicionar mensagem
+        formattedMessage.append("§7: §f").append(message);
+
+        return formattedMessage.toString();
     }
 }
