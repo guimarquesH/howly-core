@@ -19,6 +19,7 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import com.gilbertomorales.howlyvelocity.managers.GroupManager;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -31,15 +32,18 @@ public class ChatListener {
     private final MedalManager medalManager;
     private final IgnoreManager ignoreManager;
     private final ChatManager chatManager;
+    private final GroupManager groupManager;
 
     public ChatListener(ProxyServer server, HowlyAPI api, TagManager tagManager,
-                        MedalManager medalManager, IgnoreManager ignoreManager, ChatManager chatManager) {
+                        MedalManager medalManager, IgnoreManager ignoreManager,
+                        ChatManager chatManager, GroupManager groupManager) {
         this.server = server;
         this.punishmentAPI = api.getPunishmentAPI();
         this.tagManager = tagManager;
         this.medalManager = medalManager;
         this.ignoreManager = ignoreManager;
         this.chatManager = chatManager;
+        this.groupManager = groupManager;
     }
 
     @Subscribe(order = PostOrder.FIRST)
@@ -112,8 +116,23 @@ public class ChatListener {
             finalMessage = finalMessage.append(tagComponent).append(Component.text(" "));
         }
 
-        // Nome do jogador
-        String nameColor = tagManager.getPlayerNameColor(sender);
+        // Grupo (prefixo)
+        if (groupManager.isLuckPermsAvailable()) {
+            String groupPrefix = groupManager.getPlayerGroupPrefix(sender);
+            if (!groupPrefix.isEmpty()) {
+                Component groupComponent = Component.text(groupPrefix)
+                        .hoverEvent(Component.text("§fGrupo: " + groupManager.getPlayerGroupInfo(sender).getFormattedPrefix()));
+            finalMessage = finalMessage.append(groupComponent).append(Component.text(" "));
+        }
+    }
+
+        String nameColor;
+        if (groupManager.isLuckPermsAvailable()) {
+            nameColor = groupManager.getPlayerGroupNameColor(sender);
+        } else {
+            nameColor = tagManager.getPlayerNameColor(sender);
+        }
+
         TextColor playerNameColor = getTextColorFromCode(nameColor);
         finalMessage = finalMessage.append(Component.text(sender.getUsername()).color(playerNameColor));
 

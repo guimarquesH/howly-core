@@ -11,6 +11,7 @@ import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
+import com.gilbertomorales.howlyvelocity.managers.GroupManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -79,11 +80,19 @@ public class InfoCommand implements SimpleCommand {
                 .map(connection -> connection.getServerInfo().getName())
                 .orElse("Desconhecido");
 
+        // Obter informações do grupo
+        GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
+        String groupName = "Membro";
+        if (groupManager.isLuckPermsAvailable()) {
+            GroupManager.GroupInfo groupInfo = groupManager.getPlayerGroupInfo(target);
+            groupName = groupInfo.getDisplayName();
+        }
+
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§eInformações:"));
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§fUsuário: §7" + targetName));
-        sender.sendMessage(Component.text("§fGrupo: §7Indefinido"));
+        sender.sendMessage(Component.text("§fGrupo: §7" + groupName));
         sender.sendMessage(Component.text("§fUUID: §7" + target.getUniqueId().toString()));
         sender.sendMessage(Component.text(" "));
 
@@ -122,11 +131,14 @@ public class InfoCommand implements SimpleCommand {
     }
 
     private void showOfflinePlayerInfo(CommandSource sender, java.util.UUID uuid, String targetName) {
+        // Obter informações do grupo para jogador offline
+        String groupName = "Membro"; // Padrão para offline
+
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§eInformações:"));
         sender.sendMessage(Component.text(" "));
         sender.sendMessage(Component.text("§fUsuário: §7" + targetName));
-        sender.sendMessage(Component.text("§fGrupo: §7Indefinido"));
+        sender.sendMessage(Component.text("§fGrupo: §7" + groupName));
         sender.sendMessage(Component.text("§fUUID: §7" + uuid.toString()));
         sender.sendMessage(Component.text(" "));
 

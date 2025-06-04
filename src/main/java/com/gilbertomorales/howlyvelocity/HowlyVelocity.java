@@ -44,6 +44,7 @@ public class HowlyVelocity {
     private ChatManager chatManager;
     private PlaceholderManager placeholderManager;
     private HowlyAPI api;
+    private GroupManager groupManager;
 
     @Inject
     public HowlyVelocity(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -82,6 +83,9 @@ public class HowlyVelocity {
             ignoreManager = new IgnoreManager(dataDirectory);
             ignoreManager.loadIgnoreData();
 
+            // Inicializar GroupManager
+            groupManager = new GroupManager();
+
             // Inicializar ChatManager SEM a API ainda
             chatManager = new ChatManager(server, tagManager, medalManager);
 
@@ -96,13 +100,14 @@ public class HowlyVelocity {
 
             // Registrar listeners
             server.getEventManager().register(this, new PlayerListener(server, logger, playerDataManager, tagManager));
-            server.getEventManager().register(this, new ChatListener(server, api, tagManager, medalManager, ignoreManager, chatManager));
+            server.getEventManager().register(this, new ChatListener(server, api, tagManager, medalManager, ignoreManager, chatManager, groupManager));
 
             // Registrar comandos
             registerCommands();
 
             logger.info(LogColor.success("HowlyVelocity", "Plugin carregado com sucesso!"));
             logger.info(LogColor.info("HowlyVelocity", "Banco de dados: " + configManager.getDatabaseType().toUpperCase()));
+            logger.info(LogColor.info("HowlyVelocity", "LuckPerms: " + (groupManager.isLuckPermsAvailable() ? "Disponível" : "Não disponível")));
             logger.info(LogColor.info("HowlyVelocity", "Tags e medalhas salvos em arquivos JSON!"));
 
         } catch (Exception e) {
@@ -125,6 +130,14 @@ public class HowlyVelocity {
         // Comandos de personalização
         commandManager.register("tag", new TagCommand(server, tagManager));
         commandManager.register("medalha", new MedalCommand(server, medalManager));
+
+        // Sistema de grupos
+        commandManager.register("grupo", new GrupoCommand(server, groupManager));
+
+        // Chats especiais
+        commandManager.register("s", new StaffChatCommand(server, groupManager));
+        commandManager.register("yt", new YouTuberChatCommand(server, groupManager));
+        commandManager.register("b", new BunkerChatCommand(server, groupManager));
 
         // Sistema de ignorar
         commandManager.register("ignorar", new IgnorarCommand(server, ignoreManager, playerDataManager, tagManager));
@@ -219,5 +232,9 @@ public class HowlyVelocity {
 
     public HowlyAPI getAPI() {
         return api;
+    }
+
+    public GroupManager getGroupManager() {
+        return groupManager;
     }
 }

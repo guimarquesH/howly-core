@@ -11,6 +11,9 @@ import net.kyori.adventure.text.Component;
 import java.util.List;
 import java.util.Optional;
 
+import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
+import com.gilbertomorales.howlyvelocity.managers.GroupManager;
+
 public class SendCommand implements SimpleCommand {
 
     private final ProxyServer server;
@@ -55,9 +58,11 @@ public class SendCommand implements SimpleCommand {
 
         target.createConnectionRequest(targetServer).fireAndForget();
         
-        String senderName = sender instanceof Player ? tagManager.getFormattedPlayerName((Player) sender) : "§4[CONSOLE]";
+        GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
+        String senderName = sender instanceof Player ? groupManager.getFormattedPlayerName((Player) sender) : "§4[CONSOLE]";
+        String targetName = groupManager.getFormattedPlayerName(target);
         
-        sender.sendMessage(Component.text("§aJogador " + tagManager.getFormattedPlayerName(target) + " §aenviado para o servidor §e" + targetServer.getServerInfo().getName()));
+        sender.sendMessage(Component.text("§aJogador " + targetName + " §aenviado para o servidor §e" + targetServer.getServerInfo().getName()));
         target.sendMessage(Component.text("§aVocê foi enviado para o servidor §e" + targetServer.getServerInfo().getName() + " §apor " + senderName));
     }
 

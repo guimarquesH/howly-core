@@ -6,6 +6,8 @@ import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
+import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
+import com.gilbertomorales.howlyvelocity.managers.GroupManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -48,7 +50,10 @@ public class FindCommand implements SimpleCommand {
             .map(connection -> connection.getServerInfo().getName())
             .orElse("Lobby");
 
-        sender.sendMessage(Component.text("§eUsuário " + tagManager.getFormattedPlayerName(target) + " §eestá conectado em §n" + serverName + "§e."));
+        GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
+        String formattedName = groupManager.getFormattedPlayerName(target);
+
+        sender.sendMessage(Component.text("§eUsuário " + formattedName + " §eestá conectado em §n" + serverName + "§e."));
     }
 
     @Override

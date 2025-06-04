@@ -1,5 +1,6 @@
 package com.gilbertomorales.howlyvelocity.comandos;
 
+import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.managers.IgnoreManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
 import com.gilbertomorales.howlyvelocity.utils.ChatUtils;
@@ -9,6 +10,7 @@ import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
+import com.gilbertomorales.howlyvelocity.managers.GroupManager;
 
 import java.util.*;
 
@@ -84,13 +86,19 @@ public class TellCommand implements SimpleCommand {
     private Component createTellMessage(String direction, Player displayPlayer, Player contextPlayer, String message) {
         Component finalMessage = Component.text("Mensagem " + direction + " ").color(TextColor.color(85, 85, 85));
 
-        // Obter tag do jogador que será exibido (apenas se tiver)
-        String tag = tagManager.getPlayerTag(displayPlayer);
-        String nameColor = tagManager.getPlayerNameColor(displayPlayer);
+        // Obter grupo do jogador que será exibido
+        GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
+        String groupPrefix = "";
+        String nameColor = "§7";
+        
+        if (groupManager.isLuckPermsAvailable()) {
+            groupPrefix = groupManager.getPlayerGroupPrefix(displayPlayer);
+            nameColor = groupManager.getPlayerGroupNameColor(displayPlayer);
+        }
 
-        // Adicionar tag se existir (SEM espaço extra se não tiver tag)
-        if (!tag.isEmpty()) {
-            finalMessage = finalMessage.append(Component.text(tag + " "));
+        // Adicionar grupo se existir (SEM espaço extra se não tiver grupo)
+        if (!groupPrefix.isEmpty()) {
+            finalMessage = finalMessage.append(Component.text(groupPrefix + " "));
         }
 
         // Adicionar nome do jogador
