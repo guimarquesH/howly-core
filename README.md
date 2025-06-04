@@ -1,52 +1,59 @@
-# Howly Velocity
+# 🌐 Howly Velocity
 
-Plugin core da rede Howly desenvolvido para Velocity.
-
-> 🚧 Este projeto está em constante desenvolvimento e recebe atualizações diárias conforme as demandas.
+**Plugin core da rede Howly desenvolvido para Velocity.**  
+> 🚧 Projeto em constante desenvolvimento, com atualizações diárias conforme as demandas da equipe.
 
 ---
 
 ## 👤 Funcionalidades – Jogador
-- Armazenamento de dados do jogador
-- Histórico de login
-- Sistema de tags personalizadas
-- Sistema de medalhas
-- Sistema de ignorar jogadores
+
+- Armazenamento e carregamento assíncrono de dados
+- Histórico completo de login com data e hora
+- Visualização de tempo online
+- Sistema de identificação única de usuários
+- Tags personalizadas e sistema de medalhas
+- Sistema para ignorar mensagens de jogadores específicos
+
+---
 
 ## 💬 Funcionalidades – Chat
-- Chat criado do zero
-- Gerenciador de mensagens do chat
-- Formatação com placeholders
-- Sistema modular de placeholders dinâmicos
-- Bloqueio de mensagens de jogadores ignorados
-- Sistema de mensagens privadas
-- Sistema de resposta rápida à última mensagem recebida
-- Sistema de anúncios para toda a rede
+
+- Chat criado do zero, totalmente customizável
+- Gerenciador completo de mensagens com placeholders dinâmicos
+- Sistema de mensagens privadas e resposta rápida (/r)
+- Suporte a múltiplos chats: StaffChat, YoutuberChat, BunkerChat, etc.
+- Sistema de grupos integrado ao chat
+- Anúncios em toda a rede
+
+---
 
 ## 🚫 Funcionalidades – Punições
-- Sistema de banimento (temporário e permanente)
-- Sistema de mute (silenciamento de mensagens, temporário e permanente)
-- Sistema de kick (expulsão do servidor)
-- Sistema de eventos de punição
-- API pública para controle e verificação de punições
-- Execução assíncrona com banco de dados
+
+- Banimentos temporários e permanentes
+- Silenciamentos (mutes) e expulsões (kicks)
+- Registro e notificação de eventos de punição
+- API pública para controle e verificação
+- Execução assíncrona integrada ao banco de dados
+
+---
 
 ## 🧠 Funcionalidades – Backend
-- Banco de dados H2 e MySQL
-- Consultas assíncronas com HikariCP
-- Arquitetura modular e desacoplada
+
+- Suporte aos bancos H2 e MySQL
+- Consultas otimizadas com HikariCP
+- Arquitetura modular, organizada por serviços e escopos
+- API pública via `HowlyAPI.java`
+- Gerenciamento centralizado de configurações (`ConfigManager.java`)
+- Utilitários para formatação e mensagens coloridas
 - Listeners de login/logout para carregamento e salvamento de dados
-- Gerenciamento de configurações via `ConfigManager.java`
-- API pública acessível via `HowlyAPI.java`
-- Utilitários de formatação de mensagens coloridas
+
+---
 
 ## 🛠️ Funcionalidades – Utilitários e Administração
-- Visualização de jogadores online na rede
-- Localização de jogadores em servidores conectados
-- Visualização das versões dos servidores
-- Sistema de envio de jogadores entre servidores
-- Sistema de consulta de informações detalhadas de jogadores
 
-
-
-![image](https://github.com/user-attachments/assets/c46cd147-bb29-438c-9d3f-69fb110362ff)
+- Visualização de jogadores online e tempo de conexão
+- Consulta de informações detalhadas (UUID, IP, tags, histórico)
+- Envio e movimentação entre servidores
+- Monitoramento de versões dos servidores conectados
+- Sistema de manutenção
+- Sistema de MOTD
