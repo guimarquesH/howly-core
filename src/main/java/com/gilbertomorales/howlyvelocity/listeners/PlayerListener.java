@@ -4,6 +4,7 @@ import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.api.punishment.Punishment;
 import com.gilbertomorales.howlyvelocity.managers.PlayerDataManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
+import com.gilbertomorales.howlyvelocity.managers.PlaytimeManager;
 import com.gilbertomorales.howlyvelocity.utils.TimeUtils;
 import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
@@ -26,6 +27,7 @@ public class PlayerListener {
     private final PlayerDataManager playerDataManager;
     private final TagManager tagManager;
     private final HowlyAPI api;
+    private final PlaytimeManager playtimeManager;
 
     public PlayerListener(ProxyServer server, Logger logger, PlayerDataManager playerDataManager, TagManager tagManager) {
         this.server = server;
@@ -33,6 +35,7 @@ public class PlayerListener {
         this.playerDataManager = playerDataManager;
         this.tagManager = tagManager;
         this.api = HowlyAPI.getInstance();
+        this.playtimeManager = HowlyAPI.getInstance().getPlugin().getPlaytimeManager();
     }
 
     @Subscribe(order = PostOrder.FIRST)
@@ -64,6 +67,9 @@ public class PlayerListener {
 
         // Salvar dados do jogador no banco de dados
         playerDataManager.updatePlayerData(player.getUniqueId(), player.getUsername());
+
+        // Iniciar sessão de tempo online
+        playtimeManager.startSession(player.getUniqueId());
     }
 
     @Subscribe
@@ -88,6 +94,9 @@ public class PlayerListener {
 
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
-        // Nada a fazer por enquanto
+        Player player = event.getPlayer();
+
+        // Finalizar sessão de tempo online
+        playtimeManager.endSession(player.getUniqueId());
     }
 }

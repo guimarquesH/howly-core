@@ -337,6 +337,44 @@ public class DatabaseManager {
                 """);
             }
 
+            // Schema para tempo online
+            if (databaseType.equals("mysql")) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS player_playtime (
+                        player_uuid VARCHAR(36) PRIMARY KEY,
+                        total_time BIGINT NOT NULL DEFAULT 0,
+                        session_start BIGINT NULL,
+                        last_updated BIGINT NOT NULL,
+                        
+                        INDEX idx_total_time (total_time),
+                        INDEX idx_last_updated (last_updated)
+                    )
+                """);
+            } else if (databaseType.equals("h2")) {
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS player_playtime (
+                        player_uuid VARCHAR(36) PRIMARY KEY,
+                        total_time BIGINT NOT NULL DEFAULT 0,
+                        session_start BIGINT NULL,
+                        last_updated BIGINT NOT NULL
+                    )
+                """);
+
+                // Criar índices separadamente para H2
+                createIndexIfNotExists(stmt, "idx_playtime_total_time", "player_playtime", "total_time");
+                createIndexIfNotExists(stmt, "idx_playtime_last_updated", "player_playtime", "last_updated");
+
+            } else { // SQLite
+                stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS player_playtime (
+                        player_uuid TEXT PRIMARY KEY,
+                        total_time INTEGER NOT NULL DEFAULT 0,
+                        session_start INTEGER NULL,
+                        last_updated INTEGER NOT NULL
+                    )
+                """);
+            }
+
             // Inserir dados padrão
             insertDefaultData(stmt, databaseType);
 

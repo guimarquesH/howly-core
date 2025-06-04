@@ -48,6 +48,7 @@ public class HowlyVelocity {
     private HowlyAPI api;
     private GroupManager groupManager;
     private MOTDManager motdManager;
+    private PlaytimeManager playtimeManager;
 
     @Inject
     public HowlyVelocity(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -88,6 +89,9 @@ public class HowlyVelocity {
 
             // Inicializar GroupManager
             groupManager = new GroupManager();
+
+            // Inicializar PlaytimeManager
+            playtimeManager = new PlaytimeManager(databaseManager);
 
             // Inicializar MOTDManager
             motdManager = new MOTDManager(dataDirectory);
@@ -167,6 +171,9 @@ public class HowlyVelocity {
         // Novos comandos
         commandManager.register("motd", new MOTDCommand(motdManager));
         commandManager.register("manutencao", new ManutencaoCommand(server, motdManager));
+
+        // Comando de tempo online
+        commandManager.register("tempo", new TempoCommand(server, playtimeManager));
         
         logger.info(LogColor.success("HowlyVelocity", "Comandos registrados com sucesso!"));
     }
@@ -257,5 +264,9 @@ public class HowlyVelocity {
 
     public MOTDManager getMotdManager() {
         return motdManager;
+    }
+
+    public PlaytimeManager getPlaytimeManager() {
+        return playtimeManager;
     }
 }

@@ -4,6 +4,7 @@ import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.api.punishment.PunishmentAPI;
 import com.gilbertomorales.howlyvelocity.managers.MedalManager;
 import com.gilbertomorales.howlyvelocity.managers.PlayerDataManager;
+import com.gilbertomorales.howlyvelocity.managers.PlaytimeManager;
 import com.gilbertomorales.howlyvelocity.managers.TagManager;
 import com.gilbertomorales.howlyvelocity.utils.TimeUtils;
 import com.velocitypowered.api.command.CommandSource;
@@ -23,6 +24,7 @@ public class InfoCommand implements SimpleCommand {
     private final MedalManager medalManager;
     private final PlayerDataManager playerDataManager;
     private final PunishmentAPI punishmentAPI;
+    private final PlaytimeManager playtimeManager;
 
     public InfoCommand(ProxyServer server, TagManager tagManager, MedalManager medalManager) {
         this.server = server;
@@ -30,6 +32,7 @@ public class InfoCommand implements SimpleCommand {
         this.medalManager = medalManager;
         this.playerDataManager = HowlyAPI.getInstance().getPlugin().getPlayerDataManager();
         this.punishmentAPI = HowlyAPI.getInstance().getPunishmentAPI();
+        this.playtimeManager = HowlyAPI.getInstance().getPlugin().getPlaytimeManager();
     }
 
     @Override
@@ -175,22 +178,53 @@ public class InfoCommand implements SimpleCommand {
         sender.sendMessage(Component.text("§fPing: §7" + target.getPing() + "ms"));
         sender.sendMessage(Component.text(" "));
 
-        // Buscar informações de login
-        playerDataManager.getPlayerLoginInfo(target.getUniqueId()).thenAccept(loginInfo -> {
-            if (loginInfo != null) {
-                long firstJoin = loginInfo[0];
-                long lastJoin = loginInfo[1];
-
-                sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
-                sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
-            } else {
-                sender.sendMessage(Component.text("§fPrimeiro login: §7Desconhecido"));
-                sender.sendMessage(Component.text("§fÚltimo login: §7Agora"));
-            }
+        // Buscar tempo online
+        playtimeManager.getPlayerPlaytime(target.getUniqueId()).thenAccept(playtime -> {
+            String formattedTime = playtimeManager.formatPlaytime(playtime);
+            sender.sendMessage(Component.text("§fTempo online: §7" + formattedTime));
             sender.sendMessage(Component.text(" "));
+            
+            // Buscar informações de login
+            playerDataManager.getPlayerLoginInfo(target.getUniqueId()).thenAccept(loginInfo -> {
+                if (loginInfo != null) {
+                    long firstJoin = loginInfo[0];
+                    long lastJoin = loginInfo[1];
 
-            // Verificar punições
-            checkPunishments(sender, target.getUniqueId());
+                    sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
+                    sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
+                } else {
+                    sender.sendMessage(Component.text("§fPrimeiro login: §7Desconhecido"));
+                    sender.sendMessage(Component.text("§fÚltimo login: §7Agora"));
+                }
+                sender.sendMessage(Component.text(" "));
+
+                // Verificar punições
+                checkPunishments(sender, target.getUniqueId());
+            });
+        }).exceptionally(ex -> {
+            // Em caso de erro, continuar com o resto das informações
+            sender.sendMessage(Component.text("§fTempo online: §7Erro ao carregar"));
+            sender.sendMessage(Component.text(" "));
+            
+            // Buscar informações de login
+            playerDataManager.getPlayerLoginInfo(target.getUniqueId()).thenAccept(loginInfo -> {
+                if (loginInfo != null) {
+                    long firstJoin = loginInfo[0];
+                    long lastJoin = loginInfo[1];
+
+                    sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
+                    sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
+                } else {
+                    sender.sendMessage(Component.text("§fPrimeiro login: §7Desconhecido"));
+                    sender.sendMessage(Component.text("§fÚltimo login: §7Agora"));
+                }
+                sender.sendMessage(Component.text(" "));
+
+                // Verificar punições
+                checkPunishments(sender, target.getUniqueId());
+            });
+            
+            return null;
         });
     }
 
@@ -241,22 +275,53 @@ public class InfoCommand implements SimpleCommand {
         sender.sendMessage(Component.text("§fPing: §7" + target.getPing() + "ms"));
         sender.sendMessage(Component.text(" "));
 
-        // Buscar informações de login
-        playerDataManager.getPlayerLoginInfo(target.getUniqueId()).thenAccept(loginInfo -> {
-            if (loginInfo != null) {
-                long firstJoin = loginInfo[0];
-                long lastJoin = loginInfo[1];
-
-                sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
-                sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
-            } else {
-                sender.sendMessage(Component.text("§fPrimeiro login: §7Desconhecido"));
-                sender.sendMessage(Component.text("§fÚltimo login: §7Agora"));
-            }
+        // Buscar tempo online
+        playtimeManager.getPlayerPlaytime(target.getUniqueId()).thenAccept(playtime -> {
+            String formattedTime = playtimeManager.formatPlaytime(playtime);
+            sender.sendMessage(Component.text("§fTempo online: §7" + formattedTime));
             sender.sendMessage(Component.text(" "));
+            
+            // Buscar informações de login
+            playerDataManager.getPlayerLoginInfo(target.getUniqueId()).thenAccept(loginInfo -> {
+                if (loginInfo != null) {
+                    long firstJoin = loginInfo[0];
+                    long lastJoin = loginInfo[1];
 
-            // Verificar punições
-            checkPunishments(sender, target.getUniqueId());
+                    sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
+                    sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
+                } else {
+                    sender.sendMessage(Component.text("§fPrimeiro login: §7Desconhecido"));
+                    sender.sendMessage(Component.text("§fÚltimo login: §7Agora"));
+                }
+                sender.sendMessage(Component.text(" "));
+
+                // Verificar punições
+                checkPunishments(sender, target.getUniqueId());
+            });
+        }).exceptionally(ex -> {
+            // Em caso de erro, continuar com o resto das informações
+            sender.sendMessage(Component.text("§fTempo online: §7Erro ao carregar"));
+            sender.sendMessage(Component.text(" "));
+            
+            // Buscar informações de login
+            playerDataManager.getPlayerLoginInfo(target.getUniqueId()).thenAccept(loginInfo -> {
+                if (loginInfo != null) {
+                    long firstJoin = loginInfo[0];
+                    long lastJoin = loginInfo[1];
+
+                    sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
+                    sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
+                } else {
+                    sender.sendMessage(Component.text("§fPrimeiro login: §7Desconhecido"));
+                    sender.sendMessage(Component.text("§fÚltimo login: §7Agora"));
+                }
+                sender.sendMessage(Component.text(" "));
+
+                // Verificar punições
+                checkPunishments(sender, target.getUniqueId());
+            });
+            
+            return null;
         });
     }
 
@@ -292,15 +357,38 @@ public class InfoCommand implements SimpleCommand {
         sender.sendMessage(Component.text("§fPing: §7N/A"));
         sender.sendMessage(Component.text(" "));
 
-        long firstJoin = playerInfo.getFirstJoin();
-        long lastJoin = playerInfo.getLastJoin();
+        // Buscar tempo online
+        playtimeManager.getPlayerPlaytime(playerInfo.getUuid()).thenAccept(playtime -> {
+            String formattedTime = playtimeManager.formatPlaytime(playtime);
+            sender.sendMessage(Component.text("§fTempo online: §7" + formattedTime));
+            sender.sendMessage(Component.text(" "));
+            
+            long firstJoin = playerInfo.getFirstJoin();
+            long lastJoin = playerInfo.getLastJoin();
 
-        sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
-        sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
-        sender.sendMessage(Component.text(" "));
+            sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
+            sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
+            sender.sendMessage(Component.text(" "));
 
-        // Verificar punições
-        checkPunishments(sender, playerInfo.getUuid());
+            // Verificar punições
+            checkPunishments(sender, playerInfo.getUuid());
+        }).exceptionally(ex -> {
+            // Em caso de erro, continuar com o resto das informações
+            sender.sendMessage(Component.text("§fTempo online: §7Erro ao carregar"));
+            sender.sendMessage(Component.text(" "));
+            
+            long firstJoin = playerInfo.getFirstJoin();
+            long lastJoin = playerInfo.getLastJoin();
+
+            sender.sendMessage(Component.text("§fPrimeiro login: §7" + TimeUtils.formatDate(firstJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(firstJoin) + ")"));
+            sender.sendMessage(Component.text("§fÚltimo login: §7" + TimeUtils.formatDate(lastJoin).replace(" ", " às ") + " (" + TimeUtils.getTimeAgo(lastJoin) + ")"));
+            sender.sendMessage(Component.text(" "));
+
+            // Verificar punições
+            checkPunishments(sender, playerInfo.getUuid());
+            
+            return null;
+        });
     }
 
     private void checkPunishments(CommandSource sender, java.util.UUID uuid) {
