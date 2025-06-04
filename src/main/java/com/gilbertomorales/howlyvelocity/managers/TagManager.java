@@ -336,6 +336,17 @@ public class TagManager {
      * Adiciona uma nova tag disponível (para uso administrativo)
      */
     public void addAvailableTag(String tagId, String display, String permission, String nameColor) {
+        // Validações
+        if (tagId == null || tagId.trim().isEmpty() || tagId.length() > 50) {
+            throw new IllegalArgumentException("Tag ID inválido");
+        }
+        if (display == null || display.length() > 100) {
+            throw new IllegalArgumentException("Display da tag inválido");
+        }
+        if (nameColor == null || !nameColor.matches("§[0-9a-f]")) {
+            throw new IllegalArgumentException("Cor da tag inválida");
+        }
+
         availableTags.put(tagId, new TagInfo(display, permission, nameColor));
         saveTags();
     }

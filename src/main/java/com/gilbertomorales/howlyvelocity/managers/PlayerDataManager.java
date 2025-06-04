@@ -374,4 +374,24 @@ public class PlayerDataManager {
             return lastJoin;
         }
     }
+
+    private static final int MAX_CACHE_SIZE = 1000;
+    private static final long CACHE_CLEANUP_INTERVAL = 300000; // 5 minutos
+
+    public void cleanupCache() {
+        long currentTime = System.currentTimeMillis();
+        
+        // Limpar cache se estiver muito grande
+        if (nameToUuidCache.size() > MAX_CACHE_SIZE) {
+            nameToUuidCache.clear();
+            uuidToNameCache.clear();
+            idToUuidCache.clear();
+            uuidToIdCache.clear();
+        }
+    }
+
+    // Método para ser chamado periodicamente
+    public void startCacheCleanup() {
+        // Implementar limpeza periódica se necessário
+    }
 }

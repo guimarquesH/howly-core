@@ -7,6 +7,8 @@ import net.luckperms.api.model.group.Group;
 import net.luckperms.api.model.user.User;
 import net.luckperms.api.node.types.InheritanceNode;
 import net.luckperms.api.node.NodeType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -16,6 +18,8 @@ public class GroupManager {
 
     private LuckPerms luckPerms;
     private final Map<String, GroupInfo> groupInfoMap = new HashMap<>();
+    private static final Logger logger = LoggerFactory.getLogger(GroupManager.class);
+
 
     public GroupManager() {
         try {
@@ -65,7 +69,8 @@ public class GroupManager {
                 return user.getPrimaryGroup();
             }
         } catch (Exception e) {
-            // Ignorar erros
+            logger.warn("Erro ao acessar LuckPerms: " + e.getMessage());
+            return "default";
         }
 
         return "default";
@@ -85,7 +90,8 @@ public class GroupManager {
                 return user.getPrimaryGroup();
             }
         } catch (Exception e) {
-            // Ignorar erros
+            logger.warn("Erro ao acessar LuckPerms: " + e.getMessage());
+            return "default";
         }
 
         return "default";
@@ -108,7 +114,8 @@ public class GroupManager {
                         .collect(Collectors.toList());
             }
         } catch (Exception e) {
-            // Ignorar erros
+            logger.warn("Erro ao acessar LuckPerms: " + e.getMessage());
+            return Collections.singletonList("default");
         }
 
         return Collections.singletonList("default");
@@ -131,7 +138,8 @@ public class GroupManager {
                         .collect(Collectors.toList());
             }
         } catch (Exception e) {
-            // Ignorar erros
+            logger.warn("Erro ao acessar LuckPerms: " + e.getMessage());
+            return Collections.singletonList("default");
         }
 
         return Collections.singletonList("default");
@@ -343,6 +351,7 @@ public class GroupManager {
                     return true;
                 }
             } catch (Exception e) {
+                logger.warn("Erro ao acessar LuckPerms: " + e.getMessage());
                 e.printStackTrace();
             }
             return false;
@@ -372,6 +381,7 @@ public class GroupManager {
                     return true;
                 }
             } catch (Exception e) {
+                logger.warn("Erro ao acessar LuckPerms: " + e.getMessage());
                 e.printStackTrace();
             }
             return false;
@@ -404,6 +414,7 @@ public class GroupManager {
                 luckPerms.getUserManager().saveUser(user);
                 return true;
             } catch (Exception e) {
+                logger.warn("Erro ao acessar LuckPerms: " + e.getMessage());
                 e.printStackTrace();
                 return false;
             }
@@ -438,6 +449,15 @@ public class GroupManager {
      */
     public boolean isLuckPermsAvailable() {
         return luckPerms != null;
+    }
+
+    public void reloadLuckPerms() {
+        try {
+            this.luckPerms = LuckPermsProvider.get();
+            initializeGroupInfo();
+        } catch (IllegalStateException e) {
+            this.luckPerms = null;
+        }
     }
 
     public static class GroupInfo {

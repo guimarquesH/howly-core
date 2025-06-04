@@ -26,16 +26,20 @@ public class PlayerListener {
     private final Logger logger;
     private final PlayerDataManager playerDataManager;
     private final TagManager tagManager;
-    private final HowlyAPI api;
-    private final PlaytimeManager playtimeManager;
 
     public PlayerListener(ProxyServer server, Logger logger, PlayerDataManager playerDataManager, TagManager tagManager) {
         this.server = server;
         this.logger = logger;
         this.playerDataManager = playerDataManager;
         this.tagManager = tagManager;
-        this.api = HowlyAPI.getInstance();
-        this.playtimeManager = HowlyAPI.getInstance().getPlugin().getPlaytimeManager();
+    }
+
+    private HowlyAPI getAPI() {
+        return HowlyAPI.getInstance();
+    }
+
+    private PlaytimeManager getPlaytimeManager() {
+        return HowlyAPI.getInstance().getPlugin().getPlaytimeManager();
     }
 
     @Subscribe(order = PostOrder.FIRST)
@@ -52,7 +56,7 @@ public class PlayerListener {
         Player player = event.getPlayer();
 
         // Verificar se o jogador está banido
-        api.getPunishmentAPI().getActiveBan(player.getUniqueId()).thenAccept(punishment -> {
+        getAPI().getPunishmentAPI().getActiveBan(player.getUniqueId()).thenAccept(punishment -> {
             if (punishment != null) {
                 String timeRemaining = punishment.isPermanent() ? "Permanente" : TimeUtils.formatDuration(punishment.getRemainingTime());
                 String kickMessage = "§c§lHOWLY" + "\n" + "§cVocê está suspenso do servidor." + "\n\n" +
@@ -69,7 +73,7 @@ public class PlayerListener {
         playerDataManager.updatePlayerData(player.getUniqueId(), player.getUsername());
 
         // Iniciar sessão de tempo online
-        playtimeManager.startSession(player.getUniqueId());
+        getPlaytimeManager().startSession(player.getUniqueId());
     }
 
     @Subscribe
@@ -78,7 +82,7 @@ public class PlayerListener {
 
         // Verificar se o jogador está mutado e notificar
         server.getScheduler().buildTask(HowlyAPI.getInstance().getPlugin(), () -> {
-            api.getPunishmentAPI().getActiveMute(player.getUniqueId()).thenAccept(punishment -> {
+            getAPI().getPunishmentAPI().getActiveMute(player.getUniqueId()).thenAccept(punishment -> {
                 if (punishment != null) {
                     String timeRemaining = punishment.isPermanent() ? "Permanente" : TimeUtils.formatDuration(punishment.getRemainingTime());
                     String message = "\n§cVocê está silenciado.\n\n" +
@@ -97,6 +101,6 @@ public class PlayerListener {
         Player player = event.getPlayer();
 
         // Finalizar sessão de tempo online
-        playtimeManager.endSession(player.getUniqueId());
+        getPlaytimeManager().endSession(player.getUniqueId());
     }
 }

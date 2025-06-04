@@ -263,6 +263,17 @@ public class MedalManager {
     }
 
     public void addAvailableMedal(String medalId, String symbol, String permission, String color) {
+        // Validações
+        if (medalId == null || medalId.trim().isEmpty() || medalId.length() > 50) {
+            throw new IllegalArgumentException("Medal ID inválido");
+        }
+        if (symbol == null || symbol.length() > 10) {
+            throw new IllegalArgumentException("Símbolo da medalha inválido");
+        }
+        if (color == null || !color.matches("§[0-9a-f]")) {
+            throw new IllegalArgumentException("Cor da medalha inválida");
+        }
+
         availableMedals.put(medalId, new MedalInfo(symbol, permission, color));
         saveMedals();
     }

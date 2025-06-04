@@ -1,5 +1,6 @@
 package com.gilbertomorales.howlyvelocity.managers;
 
+import com.gilbertomorales.howlyvelocity.HowlyVelocity;
 import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.api.punishment.PunishmentAPI;
 import com.gilbertomorales.howlyvelocity.utils.ChatUtils;
@@ -11,9 +12,13 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class ChatManager {
-
     private final ProxyServer server;
     private final TagManager tagManager;
     private final MedalManager medalManager;
@@ -29,7 +34,15 @@ public class ChatManager {
      * Inicializa a API de punições após a HowlyAPI estar disponível
      */
     public void initializePunishmentAPI() {
-        this.punishmentAPI = HowlyAPI.getInstance().getPunishmentAPI();
+        try {
+            HowlyAPI api = HowlyAPI.getInstance();
+            if (api != null) {
+                this.punishmentAPI = api.getPunishmentAPI();
+            }
+        } catch (Exception e) {
+            // Log do erro se necessário
+            this.punishmentAPI = null;
+        }
     }
 
     public void sendMessage(Player sender, String message) {
@@ -94,17 +107,17 @@ public class ChatManager {
         StringBuilder formattedMessage = new StringBuilder();
         
         // Adicionar medalha se existir
-        if (!medal.isEmpty()) {
+        if (medal != null && !medal.isEmpty()) {
             formattedMessage.append(medal);
         }
         
         // Adicionar tag se existir
-        if (!tag.isEmpty()) {
+        if (tag != null && !tag.isEmpty()) {
             formattedMessage.append(tag).append(" ");
         }
         
         // Adicionar grupo se existir
-        if (!groupPrefix.isEmpty()) {
+        if (groupPrefix != null && !groupPrefix.isEmpty()) {
             formattedMessage.append(groupPrefix).append(" ");
         }
         
@@ -115,5 +128,26 @@ public class ChatManager {
         formattedMessage.append("§7: §f").append(message);
 
         return formattedMessage.toString();
+    }
+    
+    /**
+     * Verifica se um jogador está mutado de forma síncrona
+     * @param uuid UUID do jogador
+     * @return true se o jogador estiver mutado, false caso contrário
+     */
+    public boolean isPlayerMuted(UUID uuid) {
+        if (punishmentAPI == null) {
+            return false;
+        }
+        
+        try {
+            // Obter o resultado de forma síncrona com timeout
+            return punishmentAPI.getActiveMute(uuid)
+                .thenApply(mute -> mute != null)
+                .get(500, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            // Em caso de erro, assumir que não está mutado
+            return false;
+        }
     }
 }

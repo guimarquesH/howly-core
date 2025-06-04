@@ -49,6 +49,7 @@ public class HowlyVelocity {
     private GroupManager groupManager;
     private MOTDManager motdManager;
     private PlaytimeManager playtimeManager;
+    private PunishmentManager punishmentManager;
 
     @Inject
     public HowlyVelocity(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -60,6 +61,11 @@ public class HowlyVelocity {
         // Definir codificação UTF-8 para o sistema
         System.setProperty("file.encoding", "UTF-8");
         System.setProperty("sun.jnu.encoding", "UTF-8");
+
+        // Configurações adicionais de encoding
+        System.setProperty("console.encoding", "UTF-8");
+        System.setProperty("stdout.encoding", "UTF-8");
+        System.setProperty("stderr.encoding", "UTF-8");
     }
 
     @Subscribe
@@ -74,6 +80,9 @@ public class HowlyVelocity {
             // Inicializar banco de dados
             databaseManager = new DatabaseManager(configManager, logger);
             databaseManager.initialize();
+
+            // Inicializar PunishmentManager
+            punishmentManager = new PunishmentManager(databaseManager);
 
             // Inicializar gerenciadores básicos
             playerDataManager = new PlayerDataManager(databaseManager);
@@ -174,7 +183,7 @@ public class HowlyVelocity {
 
         // Comando de tempo online
         commandManager.register("tempo", new TempoCommand(server, playtimeManager));
-
+        
         logger.info(LogColor.success("HowlyVelocity", "Comandos registrados com sucesso!"));
     }
 
@@ -182,28 +191,60 @@ public class HowlyVelocity {
     public void onProxyShutdown(ProxyShutdownEvent event) {
         logger.info(LogColor.warning("HowlyVelocity", "Desligando plugin..."));
 
-        if (tagManager != null) {
-            tagManager.saveTags();
+        try {
+            if (tagManager != null) {
+                tagManager.saveTags();
+            }
+        } catch (Exception e) {
+            logger.error("Erro ao salvar tags: " + e.getMessage());
         }
 
-        if (medalManager != null) {
-            medalManager.saveMedals();
+        try {
+            if (medalManager != null) {
+                medalManager.saveMedals();
+            }
+        } catch (Exception e) {
+            logger.error("Erro ao salvar medalhas: " + e.getMessage());
         }
 
-        if (ignoreManager != null) {
-            ignoreManager.saveIgnoreData();
+        try {
+            if (ignoreManager != null) {
+                ignoreManager.saveIgnoreData();
+            }
+        } catch (Exception e) {
+            logger.error("Erro ao salvar dados de ignore: " + e.getMessage());
         }
 
-        if (motdManager != null) {
-            motdManager.saveMotd();
+        try {
+            if (motdManager != null) {
+                motdManager.saveMotd();
+            }
+        } catch (Exception e) {
+            logger.error("Erro ao salvar MOTD: " + e.getMessage());
         }
 
-        if (playtimeManager != null) {
-            playtimeManager.shutdown();
+        try {
+            if (playtimeManager != null) {
+                playtimeManager.shutdown();
+            }
+        } catch (Exception e) {
+            logger.error("Erro ao finalizar PlaytimeManager: " + e.getMessage());
         }
 
-        if (databaseManager != null) {
-            databaseManager.close();
+        try {
+            if (punishmentManager != null) {
+                punishmentManager.shutdown();
+            }
+        } catch (Exception e) {
+            logger.error("Erro ao finalizar PunishmentManager: " + e.getMessage());
+        }
+
+        try {
+            if (databaseManager != null) {
+                databaseManager.close();
+            }
+        } catch (Exception e) {
+            logger.error("Erro ao fechar banco de dados: " + e.getMessage());
         }
 
         logger.info(LogColor.success("HowlyVelocity", "Plugin desligado com sucesso!"));
@@ -272,5 +313,9 @@ public class HowlyVelocity {
 
     public PlaytimeManager getPlaytimeManager() {
         return playtimeManager;
+    }
+
+    public PunishmentManager getPunishmentManager() {
+        return punishmentManager;
     }
 }

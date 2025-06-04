@@ -69,6 +69,8 @@ public class DatabaseManager {
         // Configurações específicas para UTF-8
         config.addDataSourceProperty("characterEncoding", "utf8");
         config.addDataSourceProperty("useUnicode", "true");
+        config.addDataSourceProperty("connectionCollation", "utf8mb4_unicode_ci");
+        config.addDataSourceProperty("characterSetResults", "utf8");
 
         dataSource = new HikariDataSource(config);
         logger.info("Conexão com banco de dados " + databaseType.toUpperCase() + " estabelecida!");
@@ -548,5 +550,19 @@ public class DatabaseManager {
 
     public boolean isSQLite() {
         return configManager.isSQLite();
+    }
+
+    private void verifyTableStructure() throws SQLException {
+        try (Connection conn = getConnection()) {
+            // Verificar se a estrutura das tabelas está correta
+            if (tableExists(conn, "players")) {
+                if (!columnExists(conn, "players", "id")) {
+                    logger.warn("Tabela 'players' existe mas sem coluna 'id'. Recriando...");
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.execute("DROP TABLE IF EXISTS players");
+                    }
+                }
+            }
+        }
     }
 }
