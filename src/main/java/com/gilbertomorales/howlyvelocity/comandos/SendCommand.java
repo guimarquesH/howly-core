@@ -57,11 +57,11 @@ public class SendCommand implements SimpleCommand {
         RegisteredServer targetServer = serverOptional.get();
 
         target.createConnectionRequest(targetServer).fireAndForget();
-        
+
         GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
         String senderName = sender instanceof Player ? groupManager.getFormattedPlayerName((Player) sender) : "§4[CONSOLE]";
         String targetName = groupManager.getFormattedPlayerName(target);
-        
+
         sender.sendMessage(Component.text("§aJogador " + targetName + " §aenviado para o servidor §e" + targetServer.getServerInfo().getName()));
         target.sendMessage(Component.text("§aVocê foi enviado para o servidor §e" + targetServer.getServerInfo().getName() + " §apor " + senderName));
     }
@@ -70,14 +70,14 @@ public class SendCommand implements SimpleCommand {
     public List<String> suggest(Invocation invocation) {
         if (invocation.arguments().length == 1) {
             return server.getAllPlayers().stream()
-                .map(Player::getUsername)
-                .filter(name -> name.toLowerCase().startsWith(invocation.arguments()[0].toLowerCase()))
-                .toList();
+                    .map(Player::getUsername)
+                    .filter(name -> name.toLowerCase().startsWith(invocation.arguments()[0].toLowerCase()))
+                    .toList();
         } else if (invocation.arguments().length == 2) {
             return server.getAllServers().stream()
-                .map(s -> s.getServerInfo().getName())
-                .filter(name -> name.toLowerCase().startsWith(invocation.arguments()[1].toLowerCase()))
-                .toList();
+                    .map(s -> s.getServerInfo().getName())
+                    .filter(name -> name.toLowerCase().startsWith(invocation.arguments()[1].toLowerCase()))
+                    .toList();
         }
         return List.of();
     }

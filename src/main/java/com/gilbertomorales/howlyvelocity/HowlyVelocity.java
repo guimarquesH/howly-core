@@ -4,7 +4,9 @@ import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.comandos.*;
 import com.gilbertomorales.howlyvelocity.config.ConfigManager;
 import com.gilbertomorales.howlyvelocity.listeners.ChatListener;
+import com.gilbertomorales.howlyvelocity.listeners.MaintenanceListener;
 import com.gilbertomorales.howlyvelocity.listeners.PlayerListener;
+import com.gilbertomorales.howlyvelocity.listeners.ServerPingListener;
 import com.gilbertomorales.howlyvelocity.managers.*;
 import com.gilbertomorales.howlyvelocity.placeholder.PlaceholderManager;
 import com.gilbertomorales.howlyvelocity.utils.LogColor;
@@ -45,6 +47,7 @@ public class HowlyVelocity {
     private PlaceholderManager placeholderManager;
     private HowlyAPI api;
     private GroupManager groupManager;
+    private MOTDManager motdManager;
 
     @Inject
     public HowlyVelocity(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
@@ -86,6 +89,9 @@ public class HowlyVelocity {
             // Inicializar GroupManager
             groupManager = new GroupManager();
 
+            // Inicializar MOTDManager
+            motdManager = new MOTDManager(dataDirectory);
+
             // Inicializar ChatManager SEM a API ainda
             chatManager = new ChatManager(server, tagManager, medalManager);
 
@@ -101,6 +107,8 @@ public class HowlyVelocity {
             // Registrar listeners
             server.getEventManager().register(this, new PlayerListener(server, logger, playerDataManager, tagManager));
             server.getEventManager().register(this, new ChatListener(server, api, tagManager, medalManager, ignoreManager, chatManager, groupManager));
+            server.getEventManager().register(this, new ServerPingListener(motdManager));
+            server.getEventManager().register(this, new MaintenanceListener(motdManager));
 
             // Registrar comandos
             registerCommands();
@@ -155,6 +163,11 @@ public class HowlyVelocity {
         commandManager.register("mute", new MuteCommand(server, tagManager));
         commandManager.register("unban", new UnbanCommand(server, tagManager));
         commandManager.register("unmute", new UnmuteCommand(server, tagManager));
+
+        // Novos comandos
+        commandManager.register("motd", new MOTDCommand(motdManager));
+        commandManager.register("manutencao", new ManutencaoCommand(server, motdManager));
+        
         logger.info(LogColor.success("HowlyVelocity", "Comandos registrados com sucesso!"));
     }
 
@@ -172,6 +185,10 @@ public class HowlyVelocity {
 
         if (ignoreManager != null) {
             ignoreManager.saveIgnoreData();
+        }
+
+        if (motdManager != null) {
+            motdManager.saveMotd();
         }
 
         if (databaseManager != null) {
@@ -236,5 +253,9 @@ public class HowlyVelocity {
 
     public GroupManager getGroupManager() {
         return groupManager;
+    }
+
+    public MOTDManager getMotdManager() {
+        return motdManager;
     }
 }

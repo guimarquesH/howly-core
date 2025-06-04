@@ -121,11 +121,12 @@ public class ChatListener {
             String groupPrefix = groupManager.getPlayerGroupPrefix(sender);
             if (!groupPrefix.isEmpty()) {
                 Component groupComponent = Component.text(groupPrefix)
-                        .hoverEvent(Component.text("§fGrupo: " + groupManager.getPlayerGroupInfo(sender).getFormattedPrefix()));
+                        .hoverEvent(Component.text("§fGrupo: " + groupManager.getPlayerGroupInfo(sender).getDisplayName()));
             finalMessage = finalMessage.append(groupComponent).append(Component.text(" "));
         }
     }
 
+        // Nome do jogador (usar cor do grupo se disponível, senão usar cor da tag)
         String nameColor;
         if (groupManager.isLuckPermsAvailable()) {
             nameColor = groupManager.getPlayerGroupNameColor(sender);

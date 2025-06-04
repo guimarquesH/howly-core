@@ -6,6 +6,7 @@ import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.Component;
+// Corrigir a importação do HowlyAPI
 import com.gilbertomorales.howlyvelocity.api.HowlyAPI;
 import com.gilbertomorales.howlyvelocity.managers.GroupManager;
 
@@ -47,8 +48,8 @@ public class FindCommand implements SimpleCommand {
 
         Player target = targetOptional.get();
         String serverName = target.getCurrentServer()
-            .map(connection -> connection.getServerInfo().getName())
-            .orElse("Lobby");
+                .map(connection -> connection.getServerInfo().getName())
+                .orElse("Lobby");
 
         GroupManager groupManager = HowlyAPI.getInstance().getPlugin().getGroupManager();
         String formattedName = groupManager.getFormattedPlayerName(target);
@@ -60,9 +61,9 @@ public class FindCommand implements SimpleCommand {
     public List<String> suggest(Invocation invocation) {
         if (invocation.arguments().length == 1) {
             return server.getAllPlayers().stream()
-                .map(Player::getUsername)
-                .filter(name -> name.toLowerCase().startsWith(invocation.arguments()[0].toLowerCase()))
-                .toList();
+                    .map(Player::getUsername)
+                    .filter(name -> name.toLowerCase().startsWith(invocation.arguments()[0].toLowerCase()))
+                    .toList();
         }
         return List.of();
     }
