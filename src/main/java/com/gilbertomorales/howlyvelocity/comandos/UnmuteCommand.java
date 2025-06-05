@@ -82,10 +82,10 @@ public class UnmuteCommand implements SimpleCommand {
             unmuteFuture.thenAccept(success -> {
                 if (success) {
                     // Notificar staff
-                    String unmuteMessage = "§a" + targetName + " §7foi desmutado por §a" + unmuterName + "§7.";
+                    String unmuteMessage = "\n§e" + targetName + " §efoi desmutado por §a" + unmuterName + "§e." + "\n";
 
                     server.getAllPlayers().stream()
-                            .filter(p -> p.hasPermission("howly.unmute.notify"))
+                            .filter(p -> p.hasPermission("howly.ajudante"))
                             .forEach(p -> p.sendMessage(Component.text(unmuteMessage)));
 
                     // Notificar jogador se estiver online

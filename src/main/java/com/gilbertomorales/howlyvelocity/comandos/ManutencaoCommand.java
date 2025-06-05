@@ -26,8 +26,8 @@ public class ManutencaoCommand implements SimpleCommand {
         CommandSource source = invocation.source();
         String[] args = invocation.arguments();
 
-        if (!source.hasPermission("howly.coordenador")) {
-            source.sendMessage(Component.text("§cVocê precisa ser do grupo §cCoordenador §cou superior para usar este comando."));
+        if (!source.hasPermission("howly.gerente")) {
+            source.sendMessage(Component.text("§cVocê precisa ser do grupo §4Gerente §cou superior para usar este comando."));
             return;
         }
 
@@ -87,12 +87,13 @@ public class ManutencaoCommand implements SimpleCommand {
     private void sendUsage(CommandSource source) {
         source.sendMessage(Component.text(""));
         source.sendMessage(Component.text("§eUso do comando /manutencao:"));
-        source.sendMessage(Component.text("§f/manutencao iniciar §7- Ativa o modo de manutenção"));
-        source.sendMessage(Component.text("§f/manutencao finalizar §7- Desativa o modo de manutenção"));
+        source.sendMessage(Component.text(""));
+        source.sendMessage(Component.text("§e/manutencao iniciar §8- §7Ativa o modo de manutenção"));
+        source.sendMessage(Component.text("§e/manutencao finalizar §8- §7Desativa o modo de manutenção"));
         source.sendMessage(Component.text(""));
         
         // Mostrar status atual
-        String status = motdManager.isInMaintenance() ? "§cAtivado" : "§aDesativado";
+        String status = motdManager.isInMaintenance() ? "§aAtivado" : "§cDesativado";
         source.sendMessage(Component.text("§fStatus atual: " + status));
         source.sendMessage(Component.text(""));
     }

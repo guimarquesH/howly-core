@@ -71,7 +71,7 @@ public class StaffChatCommand implements SimpleCommand {
         for (Player staff : server.getAllPlayers()) {
             if (staff.hasPermission("howly.ajudante")) {
                 if (!restricaoChatEquipe.contains(staff.getUsername())) {
-                    staff.sendMessage(Component.text("§d§l[STAFF] §7" + formattedName + ": §f" + message));
+                    staff.sendMessage(Component.text("§d§l[S] §7" + formattedName + ": §f" + message));
                 }
             }
         }

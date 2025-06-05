@@ -82,7 +82,7 @@ public class UnbanCommand implements SimpleCommand {
             unbanFuture.thenAccept(success -> {
                 if (success) {
                     // Notificar staff
-                    String unbanMessage = "§a" + targetName + " §7foi desbanido por §a" + unbannerName + "§7.";
+                    String unbanMessage = "\n§e" + targetName + " foi desbanido por §a" + unbannerName + "§e." + "\n";
 
                     server.getAllPlayers().stream()
                             .filter(p -> p.hasPermission("howly.ajudante"))
