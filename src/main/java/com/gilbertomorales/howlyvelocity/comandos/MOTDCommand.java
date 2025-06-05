@@ -88,9 +88,10 @@ public class MOTDCommand implements SimpleCommand {
     private void sendUsage(CommandSource source) {
         source.sendMessage(Component.text(""));
         source.sendMessage(Component.text("§eUso do comando /motd:"));
-        source.sendMessage(Component.text("§f/motd ver §7- Exibe o MOTD atual"));
-        source.sendMessage(Component.text("§f/motd definir <mensagem> §7- Define a segunda linha do MOTD"));
-        source.sendMessage(Component.text("§f/motd padrao §7- Restaura o MOTD para a mensagem padrão"));
+        source.sendMessage(Component.text(""));
+        source.sendMessage(Component.text("§e/motd ver §8- §7Exibe o MOTD atual"));
+        source.sendMessage(Component.text("§e/motd definir <mensagem> §8- §7Define a segunda linha do MOTD"));
+        source.sendMessage(Component.text("§e/motd padrao §8- §7Restaura o MOTD para a mensagem padrão"));
         source.sendMessage(Component.text(""));
     }
 
