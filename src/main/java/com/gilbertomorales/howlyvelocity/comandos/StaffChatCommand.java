@@ -50,7 +50,6 @@ public class StaffChatCommand implements SimpleCommand {
 
         if (restricaoChatEquipe.contains(player.getUsername())) {
             player.sendMessage(Component.text("§cVocê está com o chat da equipe desabilitado!"));
-            player.sendMessage(Component.text("§cUtilize /s toggle para ativá-lo."));
             return;
         }
 
