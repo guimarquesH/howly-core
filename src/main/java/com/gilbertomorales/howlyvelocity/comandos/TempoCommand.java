@@ -74,7 +74,7 @@ public class TempoCommand implements SimpleCommand {
             String formattedName = groupManager.getFormattedPlayerName(target);
             
             if (sender.equals(target)) {
-                sender.sendMessage(Component.text("§aSeu tempo online: §n" + formattedTime));
+                sender.sendMessage(Component.text("§aSeu tempo online: §f" + formattedTime));
             } else {
                 sender.sendMessage(Component.text("§eTempo online de " + formattedName + "§e: §f" + formattedTime));
             }
