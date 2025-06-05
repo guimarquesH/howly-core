@@ -71,7 +71,7 @@ public class BunkerChatCommand implements SimpleCommand {
         for (Player gerente : server.getAllPlayers()) {
             if (gerente.hasPermission("howly.gerente")) {
                 if (!restricaoChatBunker.contains(gerente.getUsername())) {
-                    gerente.sendMessage(Component.text("§4§l[BUNKER] §7" + formattedName + ": §f" + message));
+                    gerente.sendMessage(Component.text("§c§l[B] §7" + formattedName + ": §f" + message));
                 }
             }
         }
