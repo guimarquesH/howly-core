@@ -96,7 +96,7 @@ public class GrupoCommand implements SimpleCommand {
    private void addPlayerToGroup(Player sender, Player target, String groupName) {
        groupManager.addPlayerToGroup(target, groupName).thenAccept(success -> {
            if (success) {
-               sender.sendMessage(Component.text("§eUsuário \"" + target.getUsername() + "\" adicionado ao grupo \"" + groupName + "\"."));
+               sender.sendMessage(Component.text("§aUsuário \"" + target.getUsername() + "\" adicionado ao grupo \"" + groupName + "\"."));
                
                if (groupManager.isVipGroup(groupName)) {
                    sendVipTitle(target, groupName);
@@ -174,10 +174,10 @@ public class GrupoCommand implements SimpleCommand {
        sender.sendMessage(Component.text(" "));
        sender.sendMessage(Component.text("§eUso do comando /grupo:"));
        sender.sendMessage(Component.text(" "));
-       sender.sendMessage(Component.text("§f/grupo listar §7- Lista todos os grupos disponíveis"));
-       sender.sendMessage(Component.text("§f/grupo adicionar <usuário/#id> <grupo> §7- Adiciona um usuário ao grupo"));
-       sender.sendMessage(Component.text("§f/grupo remover <usuário/#id> <grupo> §7- Remove um usuário do grupo"));
-       sender.sendMessage(Component.text("§f/grupo definir <usuário/#id> <grupo> §7- Define o grupo principal do usuário e remove todos os outros"));
+       sender.sendMessage(Component.text("§e/grupo listar §8- §7Lista todos os grupos disponíveis"));
+       sender.sendMessage(Component.text("§e/grupo adicionar <usuário/#id> <grupo> §8- §7Adiciona um usuário ao grupo"));
+       sender.sendMessage(Component.text("§e/grupo remover <usuário/#id> <grupo> §8- §7Remove um usuário do grupo"));
+       sender.sendMessage(Component.text("§e/grupo definir <usuário/#id> <grupo> §8- §7Define o grupo principal do usuário e remove todos os outros"));
        sender.sendMessage(Component.text(" "));
    }
 
