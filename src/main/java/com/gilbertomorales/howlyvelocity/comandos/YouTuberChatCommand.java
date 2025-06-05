@@ -50,7 +50,6 @@ public class YouTuberChatCommand implements SimpleCommand {
 
         if (restricaoChatYouTuber.contains(player.getUsername())) {
             player.sendMessage(Component.text("§cVocê está com o chat dos YouTubers desabilitado!"));
-            player.sendMessage(Component.text("§cUtilize /yt toggle para ativá-lo."));
             return;
         }
 
