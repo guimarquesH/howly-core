@@ -50,7 +50,6 @@ public class BunkerChatCommand implements SimpleCommand {
 
         if (restricaoChatBunker.contains(player.getUsername())) {
             player.sendMessage(Component.text("§cVocê está com o chat bunker desabilitado!"));
-            player.sendMessage(Component.text("§cUtilize /b toggle para ativá-lo."));
             return;
         }
 
